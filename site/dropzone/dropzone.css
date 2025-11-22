@@ -1,0 +1,8 @@
+
+/** Drop Zone **/
+
+relay-dropzone.relay-dragover,
+relay-dropzone .relay-dragover {
+    outline: 3px dashed #0d6efd;
+    outline-offset: 4px;
+}
