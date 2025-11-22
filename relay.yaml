@@ -22,58 +22,41 @@ metaSchema:
   required: [title, release_date, genre]
   additionalProperties: true
 db:
-  schema:
-    - |
-      CREATE TABLE IF NOT EXISTS movies (
-        id INTEGER PRIMARY KEY,
-        branch TEXT NOT NULL,
-        title TEXT NOT NULL,
-        release_date TEXT NOT NULL,
-        meta_dir TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        UNIQUE(branch, title, release_date)
-      );
-      CREATE TABLE IF NOT EXISTS genres (
-        movie_id INTEGER NOT NULL,
-        genre TEXT NOT NULL,
-        FOREIGN KEY(movie_id) REFERENCES movies(id) ON DELETE CASCADE
-      );
-      CREATE INDEX IF NOT EXISTS idx_movies_branch ON movies(branch);
-      CREATE INDEX IF NOT EXISTS idx_genres_movie ON genres(movie_id);
-  constraints: [title, release_date]
-  insertPolicy:
-    branch: "*"
-    statements:
-      - |
-        INSERT INTO movies(branch, title, release_date, meta_dir)
-        VALUES(:branch, :meta_title, :meta_release_date, :meta_dir)
-        ON CONFLICT(branch, title, release_date) DO UPDATE SET
-          meta_dir=excluded.meta_dir,
-          updated_at=CURRENT_TIMESTAMP;
-      - |
-        DELETE FROM genres WHERE movie_id = (
-          SELECT id FROM movies WHERE branch=:branch AND title=:meta_title AND release_date=:meta_release_date
-        );
-      - |
-        INSERT INTO genres(movie_id, genre)
-        SELECT m.id, j.value
-        FROM json_each(:meta_genre) AS j
-        JOIN movies m ON m.branch=:branch AND m.title=:meta_title AND m.release_date=:meta_release_date;
+  engine: polodb
+  # Template-specific: store docs in a "movies" collection
+  collection: movies
+  # Unique key per branch: Title + Release Year
+  unique: [_branch, title, release_year]
+  indexes:
+    - fields: [title]
+    - fields: [release_year]
+    - fields: [genre]
+  # Map DB document fields from meta.json; system fields _branch/_meta_dir/_created_at/_updated_at are injected automatically
+  mapping:
+    - name: title
+      from: $.title
+      type: string
+    - name: release_date
+      from: $.release_date
+      type: string
+    - name: release_year
+      derive:
+        fn: year
+        args: [ { from: $.release_date, type: string } ]
+    - name: genre
+      from: $.genre
+      type: array[string]
+    - name: meta_dir
+      from: $meta_dir
+      type: string
   queryPolicy:
-    statement: |
-      SELECT m.id, m.branch, m.title, m.release_date, m.meta_dir,
-             GROUP_CONCAT(g.genre, ',') AS genres
-      FROM movies m
-      LEFT JOIN genres g ON g.movie_id = m.id
-      /* Filter by branch unless :branch = 'all' */
-      WHERE (:branch = 'all' OR m.branch = :branch)
-      GROUP BY m.id
-      ORDER BY m.release_date DESC, m.title ASC
-      LIMIT :limit OFFSET :offset;
-    countStatement: |
-      SELECT COUNT(1)
-      FROM movies m
-      WHERE (:branch = 'all' OR m.branch = :branch);
-    pageSizeParam: ":limit"
-    pageOffsetParam: ":offset"
+    fields:
+      - { name: title, ops: [eq, in] }
+      - { name: release_year, ops: [eq, gte, lte] }
+      - { name: genre, ops: [contains] }
+    sort:
+      - { field: release_date, dir: desc }
+      - { field: title, dir: asc }
+    pagination:
+      defaultPageSize: 25
+      maxPageSize: 250
