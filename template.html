@@ -5,13 +5,41 @@
     <meta charset="utf-8">
     <link rel="stylesheet" href="/site/globals.css">
     <script type="module" src="/site/client.js"></script>
+    <!-- Movie template components -->
+    <script type="module" src="/site/components/relay-modal.js"></script>
+    <script type="module" src="/site/movies/movie-search.js"></script>
+    <script type="module" src="/site/movies/movie-upsert.js"></script>
     {head}
 </head>
 <body>
-<relay-dropzone>
-    <article class="themed">
-        {body}
-    </article>
-</relay-dropzone>
+  <article class="themed">
+    <header style="display:flex;align-items:center;gap:.75rem;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap">
+      <h1 style="margin:0;font-size:1.25rem;">Movies</h1>
+      <div style="display:flex;align-items:center;gap:.5rem;flex:1;min-width:260px;">
+        <movie-search style="flex:1"></movie-search>
+        <button id="open-create-modal" class="btn" style="white-space:nowrap;">New Movie</button>
+      </div>
+    </header>
+
+    <relay-modal id="create-modal" title="Add New Movie">
+      <movie-upsert></movie-upsert>
+    </relay-modal>
+
+    <relay-dropzone>
+      {body}
+    </relay-dropzone>
+  </article>
+
+  <script type="module">
+    // Wire the header button to open the modal
+    const openBtn = document.getElementById('open-create-modal');
+    const modal = document.getElementById('create-modal');
+    openBtn?.addEventListener('click', () => modal?.open());
+    // When upsert succeeds, close modal and ask any movie-search components to refresh
+    modal?.addEventListener('movie-upsert:success', (ev) => {
+      modal.close();
+      document.querySelectorAll('movie-search').forEach(el => el.dispatchEvent(new CustomEvent('movie-search:refresh')));
+    });
+  </script>
 </body>
 </html>
