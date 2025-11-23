@@ -177,9 +177,9 @@ class MovieViewer extends HTMLElement {
     }
 
     _renderPaneContent(tab) {
-        const d = tab.data || {};
-        const pane = this.querySelector(`#${CSS.escape(tab.paneId)}`);
-        if (!pane) return;
+    const d = tab.data || {};
+    const pane = this.querySelector(`#${CSS.escape(tab.paneId)}`);
+    if (!pane) return;
         const title = d.title || 'Untitled';
         const year = d.release_year || d.releaseYear || '';
         const genres = Array.isArray(d.genre) ? d.genre.join(', ') : '';
@@ -200,6 +200,13 @@ class MovieViewer extends HTMLElement {
           <div class="text-neutral-600">Source: ${tab.source}</div>
           ${localMetaDir ? `<div class="text-neutral-600">Local: <a class="text-blue-600 hover:underline" href="/${localMetaDir}" target="_blank">/${localMetaDir}</a></div>` : ''}
           ${tab.source === 'tmdb' && !localMetaDir ? `<div class="mt-2"><button class="btn-create px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-blue-600 text-white">Create local entry</button></div>` : ''}
+
+          <div class="mt-3 p-2 rounded border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-neutral-800" id="streaming-panel">
+            <div class="font-semibold mb-1">Streaming</div>
+            <div class="text-sm text-neutral-600" id="streaming-hint"></div>
+            <div class="grid gap-2 mt-2" id="streaming-controls"></div>
+            <div class="text-xs text-neutral-500 mt-2" id="streaming-status"></div>
+          </div>
         </div>
       </div>
     `;
@@ -265,6 +272,308 @@ class MovieViewer extends HTMLElement {
                     modal?.open?.();
                 });
             }
+        }
+
+        // Wire up streaming panel
+        try {
+            const panel = pane.querySelector('#streaming-panel');
+            const controls = pane.querySelector('#streaming-controls');
+            const statusEl = pane.querySelector('#streaming-status');
+            const hint = pane.querySelector('#streaming-hint');
+            const hasBridge = !!(window && window.Streaming);
+            if (!hasBridge) {
+                hint.textContent = 'Desktop-only: streaming requires the Relay desktop app.';
+            } else {
+                hint.textContent = '';
+                const meta = d || {};
+                const ht = Array.isArray(meta.hash_torrent) ? meta.hash_torrent : [];
+
+                const waiting = new Map(); // info_hash -> boolean (waiting)
+
+                function remediationText(msg) {
+                    const s = String(msg || '').toLowerCase();
+                    if (s.includes('rpc') || s.includes('qbt') || s.includes('transmission')) {
+                        return ' • Tip: Ensure qBittorrent WebUI (http://127.0.0.1:8080) or Transmission RPC (http://127.0.0.1:9091/transmission/rpc) is running. On localhost, enable WebUI and bypass auth for 127.0.0.1 during development.';
+                    }
+                    return '';
+                }
+
+                // Utility to render a per-hash file list container id
+                const filesContainerId = (h) => `files-${h}`;
+
+                async function checkBackend() {
+                    try {
+                        const res = await window.Streaming.refreshBackend();
+                        if (res?.error) {
+                            statusEl.textContent = `Backend: ${res.active || '-'} — ${res.error}${remediationText(res.error)}`;
+                        } else {
+                            statusEl.textContent = `Backend: ${res.active || 'unknown'} — OK`;
+                        }
+                    } catch (e) {
+                        statusEl.textContent = 'Backend check failed.' + remediationText(e?.message || e);
+                    }
+                }
+
+                function renderHashControls() {
+                    controls.innerHTML = '';
+                    if (ht.length) {
+                        ht.forEach((entry, idx) => {
+                            const hash = (entry && (entry.hash || entry)) || '';
+                            const desc = (entry && entry.description) || '';
+                            const row = document.createElement('div');
+                            row.className = 'flex flex-wrap items-center gap-2 text-sm';
+                            row.innerHTML = `
+                              <span class="font-mono">${String(hash).slice(0, 10)}…</span>
+                              <span class="text-neutral-600">${desc}</span>
+                              <button class="btn-st-status px-2 py-1 rounded bg-green-600 text-white" data-h="${hash}">Status</button>
+                              <button class="btn-st-files px-2 py-1 rounded bg-indigo-600 text-white" data-h="${hash}">Files…</button>
+                              <button class="btn-st-play px-2 py-1 rounded bg-purple-600 text-white" data-h="${hash}">Request Play</button>
+                              <button class="btn-st-open px-2 py-1 rounded bg-rose-600 text-white" data-h="${hash}">Open with System Player</button>
+                              <button class="btn-st-resume px-2 py-1 rounded bg-amber-600 text-white hidden" data-h="${hash}">Resume when available</button>
+                              <button class="btn-st-cancel px-2 py-1 rounded bg-amber-700 text-white hidden" data-h="${hash}">Cancel resume</button>
+                              <button class="btn-st-backend px-2 py-1 rounded bg-gray-600 text-white" data-h="${hash}">Check backend</button>
+                              <div class="w-full mt-2" id="${filesContainerId(hash)}"></div>
+                            `;
+                            controls.appendChild(row);
+                        });
+                    } else {
+                        const findWrap = document.createElement('div');
+                        findWrap.className = 'flex items-center gap-2';
+                        findWrap.innerHTML = `<button class="px-3 py-2 rounded bg-blue-600 text-white" id="btn-find-yts">Find Torrents (YTS)</button>`;
+                        controls.appendChild(findWrap);
+                        const btn = findWrap.querySelector('#btn-find-yts');
+                        btn?.addEventListener('click', async () => {
+                            statusEl.textContent = 'Searching YTS…';
+                            try {
+                                const mod = await import('./yts/query_yts.js');
+                                const out = await mod.queryYtsForTorrents(d.title || '');
+                                statusEl.textContent = `YTS: ${out.torrents?.length || 0} found`;
+                                if (out.torrents && out.torrents.length) {
+                                    // Prefer magnet when available; add first magnet result
+                                    const mag = out.torrents.find(t => t.href_magnet)?.href_magnet;
+                                    if (mag) {
+                                        try {
+                                            await window.Streaming.addMagnet(mag);
+                                            statusEl.textContent += ' — magnet added.';
+                                        } catch (e) {
+                                            statusEl.textContent += ' — add failed.';
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                statusEl.textContent = 'YTS search failed.';
+                            }
+                        });
+                    }
+
+                    // Wire buttons
+                    controls.querySelectorAll('.btn-st-status').forEach(btn => {
+                        btn.addEventListener('click', async (ev) => {
+                            const h = ev.currentTarget.getAttribute('data-h');
+                            statusEl.textContent = 'Loading status…';
+                            try {
+                                const st = await window.Streaming.status(h);
+                                statusEl.textContent = `State: ${st.state}, ${st.downloaded}/${st.size} bytes`;
+                            } catch (e) {
+                                statusEl.textContent = 'Status failed.' + remediationText(e?.message || e);
+                            }
+                        });
+                    });
+                    controls.querySelectorAll('.btn-st-files').forEach(btn => {
+                        btn.addEventListener('click', async (ev) => {
+                            const h = ev.currentTarget.getAttribute('data-h');
+                            statusEl.textContent = 'Loading files…';
+                            try {
+                                const fs = await window.Streaming.listFiles(h);
+                                statusEl.textContent = `Files: ${fs.length}`;
+                                const container = controls.querySelector(`#${filesContainerId(h)}`);
+                                if (container) {
+                                    container.innerHTML = '';
+                                    if (!fs.length) {
+                                        container.innerHTML = '<div class="text-xs text-neutral-500">No files.</div>';
+                                    } else {
+                                        // build radio list and a per-file play button
+                                        const list = document.createElement('div');
+                                        list.className = 'grid gap-1';
+                                        fs.forEach(f => {
+                                            const id = `sel-${h}-${f.index}`;
+                                            const row = document.createElement('label');
+                                            row.className = 'flex items-start gap-2 text-xs';
+                                            row.innerHTML = `
+                                              <input type="radio" name="sel-file-${h}" id="${id}" value="${f.index}">
+                                              <div>
+                                                <div class="font-mono break-all">${f.path}</div>
+                                                <div class="text-neutral-500">${f.downloaded} / ${f.length} bytes ${f.is_media ? '• media' : ''}</div>
+                                              </div>
+                                            `;
+                                            list.appendChild(row);
+                                        });
+                                        const actions = document.createElement('div');
+                                        actions.className = 'mt-2 flex gap-2';
+                                        actions.innerHTML = `
+                                          <button class="btn-st-play-file px-2 py-1 rounded bg-purple-700 text-white" data-h="${h}">Request Play (selected file)</button>
+                                          <button class="btn-st-open-file px-2 py-1 rounded bg-rose-700 text-white" data-h="${h}">Open with System Player (selected)</button>
+                                          <button class="btn-st-resume-file px-2 py-1 rounded bg-amber-700 text-white" data-h="${h}">Resume when available (selected)</button>
+                                        `;
+                                        container.appendChild(list);
+                                        container.appendChild(actions);
+
+                                        actions.querySelector('.btn-st-play-file')?.addEventListener('click', async (ev2) => {
+                                            const h2 = ev2.currentTarget.getAttribute('data-h');
+                                            const sel = container.querySelector(`input[name="sel-file-${h2}"]:checked`);
+                                            const idx = sel ? Number(sel.value) : undefined;
+                                            if (idx == null) { statusEl.textContent = 'Select a file first.'; return; }
+                                            statusEl.textContent = 'Requesting play…';
+                                            try {
+                                                const dec = await window.Streaming.requestPlay(h2, idx);
+                                                if (dec.allow) statusEl.textContent = 'Play allowed — opening on desktop (if enabled).';
+                                                else statusEl.textContent = 'Not yet playable: ' + (dec.reason || '');
+                                            } catch (e) {
+                                                statusEl.textContent = 'Request failed.' + remediationText(e?.message || e);
+                                            }
+                                        });
+
+                                        actions.querySelector('.btn-st-open-file')?.addEventListener('click', async (ev2) => {
+                                            const h2 = ev2.currentTarget.getAttribute('data-h');
+                                            const sel = container.querySelector(`input[name="sel-file-${h2}"]:checked`);
+                                            const idx = sel ? Number(sel.value) : undefined;
+                                            if (idx == null) { statusEl.textContent = 'Select a file first.'; return; }
+                                            statusEl.textContent = 'Requesting play…';
+                                            try {
+                                                const dec = await window.Streaming.requestPlay(h2, idx);
+                                                if (dec.allow && dec.path) {
+                                                    await window.Streaming.openWithSystem(dec.path);
+                                                    statusEl.textContent = 'Opened with system player.';
+                                                } else {
+                                                    statusEl.textContent = 'Not yet playable: ' + (dec.reason || '');
+                                                }
+                                            } catch (e) {
+                                                statusEl.textContent = 'Open-with-system failed.' + remediationText(e?.message || e);
+                                            }
+                                        });
+
+                                        actions.querySelector('.btn-st-resume-file')?.addEventListener('click', async (ev2) => {
+                                            const h2 = ev2.currentTarget.getAttribute('data-h');
+                                            const sel = container.querySelector(`input[name="sel-file-${h2}"]:checked`);
+                                            const idx = sel ? Number(sel.value) : undefined;
+                                            if (idx == null) { statusEl.textContent = 'Select a file first.'; return; }
+                                            try {
+                                                statusEl.textContent = 'Waiting until playable…';
+                                                await window.Streaming.resumeWhenAvailable(h2, idx);
+                                                const dec = await window.Streaming.requestPlay(h2, idx);
+                                                if (dec.allow) statusEl.textContent = 'Now playable — opening player (desktop).';
+                                                else statusEl.textContent = 'Still not playable: ' + (dec.reason || '');
+                                            } catch (e) {
+                                                statusEl.textContent = 'Resume failed or canceled.';
+                                            }
+                                        });
+                                    }
+                                }
+                            } catch (e) {
+                                statusEl.textContent = 'Files failed.' + remediationText(e?.message || e);
+                            }
+                        });
+                    });
+                    controls.querySelectorAll('.btn-st-play').forEach(btn => {
+                        btn.addEventListener('click', async (ev) => {
+                            const h = ev.currentTarget.getAttribute('data-h');
+                            statusEl.textContent = 'Requesting play…';
+                            try {
+                                const dec = await window.Streaming.requestPlay(h);
+                                const row = ev.currentTarget.closest('div');
+                                const btnResume = row?.querySelector('.btn-st-resume');
+                                const btnCancel = row?.querySelector('.btn-st-cancel');
+                                if (dec.allow) {
+                                    statusEl.textContent = 'Play allowed (player may open on desktop).';
+                                    if (btnResume) btnResume.classList.add('hidden');
+                                    if (btnCancel) btnCancel.classList.add('hidden');
+                                    waiting.delete(h);
+                                } else {
+                                    statusEl.textContent = 'Not yet playable: ' + (dec.reason || '');
+                                    if (btnResume && !waiting.get(h)) btnResume.classList.remove('hidden');
+                                    if (btnCancel && waiting.get(h)) btnCancel.classList.remove('hidden');
+                                }
+                            } catch (e) {
+                                statusEl.textContent = 'Request failed.' + remediationText(e?.message || e);
+                            }
+                        });
+                    });
+
+                    // Open with system (per-hash)
+                    controls.querySelectorAll('.btn-st-open').forEach(btn => {
+                        btn.addEventListener('click', async (ev) => {
+                            const h = ev.currentTarget.getAttribute('data-h');
+                            statusEl.textContent = 'Requesting play…';
+                            try {
+                                const dec = await window.Streaming.requestPlay(h);
+                                if (dec.allow && dec.path) {
+                                    await window.Streaming.openWithSystem(dec.path);
+                                    statusEl.textContent = 'Opened with system player.';
+                                    waiting.delete(h);
+                                } else {
+                                    statusEl.textContent = 'Not yet playable: ' + (dec.reason || '');
+                                }
+                            } catch (e) {
+                                statusEl.textContent = 'Open-with-system failed.' + remediationText(e?.message || e);
+                            }
+                        });
+                    });
+
+                    // Resume when available handlers
+                    controls.querySelectorAll('.btn-st-resume').forEach(btn => {
+                        btn.addEventListener('click', async (ev) => {
+                            const h = ev.currentTarget.getAttribute('data-h');
+                            const row = ev.currentTarget.closest('div');
+                            const btnResume = row?.querySelector('.btn-st-resume');
+                            const btnCancel = row?.querySelector('.btn-st-cancel');
+                            try {
+                                waiting.set(h, true);
+                                if (btnResume) btnResume.classList.add('hidden');
+                                if (btnCancel) btnCancel.classList.remove('hidden');
+                                statusEl.textContent = 'Waiting until playable…';
+                                await window.Streaming.resumeWhenAvailable(h);
+                                // When resolved, request play again (confirmation/autoplay handled in desktop)
+                                const dec = await window.Streaming.requestPlay(h);
+                                if (dec.allow) statusEl.textContent = 'Now playable — opening player (desktop).';
+                                else statusEl.textContent = 'Still not playable: ' + (dec.reason || '');
+                            } catch (e) {
+                                statusEl.textContent = 'Resume failed or canceled.';
+                            } finally {
+                                waiting.delete(h);
+                                if (btnCancel) btnCancel.classList.add('hidden');
+                                if (btnResume) btnResume.classList.remove('hidden');
+                            }
+                        });
+                    });
+
+                    controls.querySelectorAll('.btn-st-cancel').forEach(btn => {
+                        btn.addEventListener('click', async (ev) => {
+                            const h = ev.currentTarget.getAttribute('data-h');
+                            const row = ev.currentTarget.closest('div');
+                            const btnResume = row?.querySelector('.btn-st-resume');
+                            const btnCancel = row?.querySelector('.btn-st-cancel');
+                            try {
+                                await window.Streaming.cancelResume(h);
+                                statusEl.textContent = 'Resume canceled.';
+                            } catch (e) {
+                                statusEl.textContent = 'Cancel failed.';
+                            } finally {
+                                waiting.delete(h);
+                                if (btnCancel) btnCancel.classList.add('hidden');
+                                if (btnResume) btnResume.classList.remove('hidden');
+                            }
+                        });
+                    });
+
+                    // Backend check buttons
+                    controls.querySelectorAll('.btn-st-backend').forEach(btn => {
+                        btn.addEventListener('click', () => checkBackend());
+                    });
+                }
+
+                renderHashControls();
+            }
+        } catch (e) {
         }
 
         // Dispatch an event after pane content is rendered so tests/stories can react
