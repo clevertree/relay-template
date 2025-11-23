@@ -30,12 +30,30 @@ metaSchema:
       description: Short description/overview
     hash_torrent:
       type: array
-      items: { type: string }
-      description: Torrent Hashs
+      description: Torrent hashes with optional descriptions (e.g., quality/size/source)
+      items:
+        type: object
+        properties:
+          hash:
+            type: string
+            description: 40-character BitTorrent info hash (hex)
+          description:
+            type: string
+            description: Human-readable details (e.g., 1080p, BluRay, 2.1 GB)
+        required: [ hash ]
     hash_ipfs:
       type: array
-      items: { type: string }
-      description: IPFS Hashs
+      description: IPFS CIDs with optional descriptions
+      items:
+        type: object
+        properties:
+          hash:
+            type: string
+            description: IPFS CID (v0 or v1)
+          description:
+            type: string
+            description: Human-readable details (e.g., source, quality)
+        required: [ hash ]
   required: [ title, release_date, genre ]
   additionalProperties: true
 db:
