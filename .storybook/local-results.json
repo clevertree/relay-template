@@ -1,0 +1,6 @@
+{
+  "results": [
+    {"id": "local-1","title": "Alien","release_date":"1979-05-25","poster_local":"/.storybook/poster-placeholder-1.svg","genre":["Horror","Science Fiction"],"source":"local"},
+    {"id": "local-2","title": "Luis and the Aliens","release_date":"2018-05-09","poster_local":"/.storybook/poster-placeholder-2.svg","genre":["Animation","Family"],"source":"local"}
+  ]
+}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Template - Mobile</title>
+  <link rel="stylesheet" href="/site/globals.generated.css">
+  <style>
+    body { padding: 12px; }
+    .preview-wrap { max-width: 420px; margin: 12px auto; }
+    .movies-grid { grid-template-columns: 1fr; }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap themed mx-auto px-3 pb-12">
+    <div style="margin-bottom:12px">
+      <input placeholder="Search movies (title or year)" class="px-3 py-2 rounded-md border bg-[color:var(--panel)] text-[color:var(--text)] search-el" style="width:100%;" />
+    </div>
+    <header class="site-header mb-4 flex-wrap">
+      <div class="flex items-center gap-2 flex-1 min-w-[160px]">
+        <h1 class="m-0 text-lg font-semibold">Movies</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="px-2 py-1 rounded-md border border-black/15 bg-[color:var(--accent)] text-white">New</button>
+      </div>
+    </header>
+    <section class="movies-grid" id="movies-grid">
+      <div class="movie-card">
+        <img class="movie-poster" src="/.storybook/poster-placeholder-1.svg" alt="poster" />
+        <div class="movie-meta"><div class="movie-title">Mobile Movie</div><div class="movie-sub">2024 • Drama</div></div>
+      </div>
+      <div class="movie-card">
+        <img class="movie-poster" src="/.storybook/poster-placeholder-2.svg" alt="poster" />
+        <div class="movie-meta"><div class="movie-title">Another</div><div class="movie-sub">2021</div></div>
+      </div>
+    </section>
+  </div>
+  <script src="/.storybook/mock-api.js"></script>
+</body>
+</html>
