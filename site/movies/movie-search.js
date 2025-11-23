@@ -13,7 +13,8 @@ class MovieSearch extends HTMLElement {
     }
 
     connectedCallback() {
-
+        // Ensure component styles are applied inside shadow DOM
+        this._adoptCss();
         this.shadowRoot.innerHTML = `
       <div class="searchbar">
         <input type="search" placeholder="Search movies (title or year)" aria-label="Search movies" />
@@ -43,6 +44,32 @@ class MovieSearch extends HTMLElement {
         });
         this.addEventListener('movie-search:refresh', this._onRefresh);
         this._query();
+    }
+
+    async _adoptCss() {
+        try {
+            if (!this.constructor.__sheet) {
+                const res = await fetch('/site/movies/movie-search.css');
+                const css = await res.text();
+                const sheet = new CSSStyleSheet();
+                await sheet.replace(css);
+                this.constructor.__sheet = sheet;
+            }
+            const sheet = this.constructor.__sheet;
+            const current = this.shadowRoot.adoptedStyleSheets || [];
+            if (!current.includes(sheet)) {
+                this.shadowRoot.adoptedStyleSheets = [...current, sheet];
+            }
+        } catch (e) {
+            // Fallback for browsers without constructable stylesheets
+            try {
+                const res = await fetch('/site/movies/movie-search.css');
+                const css = await res.text();
+                const style = document.createElement('style');
+                style.textContent = css;
+                this.shadowRoot.prepend(style);
+            } catch {}
+        }
     }
 
     disconnectedCallback() {
@@ -118,28 +145,41 @@ class MovieSearch extends HTMLElement {
             this.$results.innerHTML = `<div class="empty">No results.</div>`;
             return;
         }
-        const html = items.map(it => {
+        const header = `
+          <div class="grid head">
+            <div class="col-title">Title</div>
+            <div class="col-genres">Genres</div>
+            <div class="col-source">Source</div>
+            <div class="col-actions">Actions</div>
+          </div>`;
+        const rows = items.map(it => {
             const title = it.title ?? '(untitled)';
             const year = it.release_year ?? '';
             const genres = Array.isArray(it.genre) ? it.genre.join(', ') : '';
             const dir = it.meta_dir || it._meta_dir || '';
             const source = it.source || (dir ? 'local' : 'tmdb');
             const dataId = it.id ? String(it.id) : (dir || `${title}::${year}`);
+            const link = dir ? `<a href="/${dir}" target="_blank">/${dir}</a>` : '';
             return `
-        <div class="item" data-source="${source}" data-id="${encodeURIComponent(dataId)}" data-dir="${dir}">
-          <div class="row1"><strong>${title}</strong> ${year ? `(${year})` : ''} <span class="badge badge-${source}">${source}</span></div>
-          ${genres ? `<div class="meta">${genres}</div>` : ''}
-          ${dir ? `<div class="meta"><a href="/${dir}" target="_blank">/${dir}</a></div>` : ''}
-        </div>`;
+          <div class="grid row" data-source="${source}" data-id="${encodeURIComponent(dataId)}" data-dir="${dir}">
+            <div class="title"><strong>${title}</strong> ${year ? `(${year})` : ''} ${link}</div>
+            <div class="genres col-genres">${genres || ''}</div>
+            <div class="source col-source"><span class="badge badge-${source}">${source}</span></div>
+            <div class="actions">
+              <button class="btn btn-view" aria-label="View ${title}">View</button>
+            </div>
+          </div>`;
         }).join('');
-        this.$results.innerHTML = html;
-        // Click handlers to open viewer tabs
-        this.$results.querySelectorAll('.item').forEach(el => {
-            el.addEventListener('click', () => {
-                const source = el.getAttribute('data-source') || 'local';
-                const id = decodeURIComponent(el.getAttribute('data-id') || '');
-                const meta_dir = el.getAttribute('data-dir') || '';
-                const payload = {source, id, meta_dir};
+        this.$results.innerHTML = header + rows;
+        // Hook up explicit View buttons
+        this.$results.querySelectorAll('.btn-view').forEach(btn => {
+            btn.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const row = btn.closest('.row');
+                const source = row?.getAttribute('data-source') || 'local';
+                const id = decodeURIComponent(row?.getAttribute('data-id') || '');
+                const meta_dir = row?.getAttribute('data-dir') || '';
+                const payload = { source, id, meta_dir };
                 this.dispatchEvent(new CustomEvent('movie-search:open', {
                     detail: payload,
                     bubbles: true,
