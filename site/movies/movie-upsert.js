@@ -140,6 +140,37 @@ class MovieUpsert extends HTMLElement {
             this.$err.textContent = err.message || String(err);
         }
     }
+
+    // Public: populate form fields from a meta-like object
+    // Expected fields: title (string), release_date (YYYY-MM-DD) or release_year (number),
+    // genre (array[string]), overview, url_poster, url_backdrop, and any extra fields to merge.
+    populate(meta) {
+        if (!this.shadowRoot) return;
+        const $title = this.shadowRoot.getElementById('title');
+        const $date = this.shadowRoot.getElementById('release_date');
+        const $genre = this.shadowRoot.getElementById('genre');
+        const $extra = this.shadowRoot.getElementById('extra');
+        if ($title && meta?.title) $title.value = String(meta.title);
+        // Prefer full release_date; fallback to release_year-01-01 if available
+        let rd = meta?.release_date;
+        if ((!rd || !/^\d{4}-\d{2}-\d{2}$/.test(rd)) && meta?.release_year) {
+            const yr = String(meta.release_year).padStart(4, '0');
+            rd = `${yr}-01-01`;
+        }
+        if ($date && rd) $date.value = rd;
+        if ($genre && Array.isArray(meta?.genre)) $genre.value = meta.genre.join(', ');
+        // Merge extra fields into JSON textarea
+        const extras = {};
+        if (meta?.overview) extras.overview = meta.overview;
+        if (meta?.url_poster) extras.url_poster = meta.url_poster;
+        if (meta?.url_backdrop) extras.url_backdrop = meta.url_backdrop;
+        // Preserve existing extra JSON if any
+        try {
+            const existing = ($extra?.value || '').trim();
+            if (existing) Object.assign(extras, JSON.parse(existing));
+        } catch {}
+        if ($extra) $extra.value = Object.keys(extras).length ? JSON.stringify(extras, null, 2) : '';
+    }
 }
 
 customElements.define('movie-upsert', MovieUpsert);

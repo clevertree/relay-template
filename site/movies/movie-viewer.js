@@ -1,4 +1,5 @@
 import {getTmdbById} from './plugin/get_tmdb.js';
+import {queryLocalViaServer} from './plugin/query_tmdb.js';
 
 class MovieViewer extends HTMLElement {
     constructor() {
@@ -24,11 +25,33 @@ class MovieViewer extends HTMLElement {
         };
         document.addEventListener('movie-search:open', this._onOpen);
         this.addEventListener('movie-search:open', this._onOpen);
+        // Listen for successful upserts to update any open TMDB tab state
+        this._onUpsertSuccess = (ev) => {
+            const detail = ev.detail || {};
+            const path = (detail.path || '').toString().replace(/\\/g, '/');
+            let dir = path;
+            if (dir.endsWith('meta.json')) dir = dir.slice(0, -'meta.json'.length);
+            dir = dir.replace(/\/+$/, '');
+            // Update the active TMDB tab if it doesn't already have a local
+            const active = this._tabs.find(t => t.active && t.source === 'tmdb');
+            if (active && !active.localMetaDir && dir) {
+                active.localMetaDir = dir;
+                this._renderTabs();
+                this._renderPaneContent(active);
+            }
+        };
+        document.addEventListener('movie-upsert:success', this._onUpsertSuccess);
     }
 
     disconnectedCallback() {
         document.removeEventListener('movie-search:open', this._onOpen);
         this.removeEventListener('movie-search:open', this._onOpen);
+        document.removeEventListener('movie-upsert:success', this._onUpsertSuccess);
+    }
+
+    _branch() {
+        const meta = document.querySelector('meta[name="relay-branch"]');
+        return meta?.getAttribute('content') || 'main';
     }
 
     async openMovie({source = 'local', id, meta_dir}) {
@@ -54,6 +77,17 @@ class MovieViewer extends HTMLElement {
                 if (data) data.source = 'local';
             } else if (source === 'tmdb' && id) {
                 data = await getTmdbById(id);
+                // Also check for an existing local entry (prefer exact title + year)
+                try {
+                    if (data && data.title && data.release_year != null) {
+                        const body = { params: { title: { eq: data.title }, release_year: { eq: Number(data.release_year) } }, page: 0 };
+                        const local = await queryLocalViaServer(body, this._branch());
+                        const first = (local && Array.isArray(local.rows) && local.rows[0]) ? local.rows[0] : null;
+                        if (first && (first.meta_dir || first._meta_dir)) {
+                            tab.localMetaDir = first.meta_dir || first._meta_dir;
+                        }
+                    }
+                } catch {}
             }
             if (!data) throw new Error('Not found');
             tab.data = data;
@@ -132,6 +166,7 @@ class MovieViewer extends HTMLElement {
         const overview = d.overview || '';
         const urlPoster = d.url_poster || d.poster || '';
         const urlBackdrop = d.url_backdrop || '';
+        const localMetaDir = tab.localMetaDir || tab.meta_dir;
         pane.innerHTML = `
       <div class="grid">
         <div>
@@ -143,10 +178,33 @@ class MovieViewer extends HTMLElement {
           ${genres ? `<div class="meta">Genres: ${genres}</div>` : ''}
           ${overview ? `<p class="meta">${overview}</p>` : ''}
           <div class="meta">Source: ${tab.source}</div>
-          ${tab.source === 'local' && tab.meta_dir ? `<div class="meta"><a href="/${tab.meta_dir}" target="_blank">/${tab.meta_dir}</a></div>` : ''}
+          ${localMetaDir ? `<div class="meta">Local: <a href="/${localMetaDir}" target="_blank">/${localMetaDir}</a></div>` : ''}
+          ${tab.source === 'tmdb' && !localMetaDir ? `<div class="actions"><button class="btn btn-create">Create local entry</button></div>` : ''}
         </div>
       </div>
     `;
+        // Wire Create button to open the modal prefilled
+        if (tab.source === 'tmdb' && !localMetaDir) {
+            const btn = pane.querySelector('.btn-create');
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    const modal = document.getElementById('create-modal');
+                    const upsert = modal?.querySelector('movie-upsert');
+                    if (upsert && typeof upsert.populate === 'function') {
+                        upsert.populate({
+                            title: d.title,
+                            release_date: d.release_date,
+                            release_year: d.release_year,
+                            genre: Array.isArray(d.genre) ? d.genre : [],
+                            overview: d.overview,
+                            url_poster: d.url_poster,
+                            url_backdrop: d.url_backdrop
+                        });
+                    }
+                    modal?.open?.();
+                });
+            }
+        }
     }
 }
 

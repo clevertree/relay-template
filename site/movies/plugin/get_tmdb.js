@@ -13,10 +13,11 @@ export async function getTmdbById(id) {
   if (!resp.ok) return null;
   const r = await resp.json();
   const title = r.title || r.original_title || '';
+  const release_date = r.release_date || undefined;
   const release_year = r.release_date ? Number((r.release_date || '').slice(0, 4)) : undefined;
   const url_poster = r.poster_path ? ('https://image.tmdb.org/t/p/w500' + r.poster_path) : undefined;
   const url_backdrop = r.backdrop_path ? ('https://image.tmdb.org/t/p/w780' + r.backdrop_path) : undefined;
   const overview = r.overview;
   const genres = Array.isArray(r.genres) ? r.genres.map(g => g.name).filter(Boolean) : undefined;
-  return { id: movieId, title, release_year, url_poster, url_backdrop, overview, genre: genres, source: 'tmdb' };
+  return { id: movieId, title, release_date, release_year, url_poster, url_backdrop, overview, genre: genres, source: 'tmdb' };
 }

@@ -12,3 +12,8 @@
 .title { margin:0 0 .25rem 0; }
 .grid { display:grid; grid-template-columns: 160px 1fr; gap:1rem; align-items:start; }
 @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } .poster { max-width: 100%; } }
+
+/* Buttons inside viewer */
+.btn { padding:.45rem .7rem; border-radius:8px; border:1px solid rgba(0,0,0,.15); background:#0d6efd; color:#fff; cursor:pointer; }
+.btn.secondary { background:#f7f7f7; color:#111; }
+.btn:focus { outline: 2px solid #6aa7ff; outline-offset:2px; }
