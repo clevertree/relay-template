@@ -1,45 +1,45 @@
-import {getTmdbById} from './plugin/get_tmdb.js';
-import {queryLocalViaServer} from './plugin/query_tmdb.js';
+import {getTmdbById} from './tmdb/get_tmdb.js';
+import {queryLocalViaServer} from './tmdb/query_tmdb.js';
 
 class MovieViewer extends HTMLElement {
-  constructor() {
-    super();
-    this._tabs = [];
-  }
+    constructor() {
+        super();
+        this._tabs = [];
+    }
 
-  connectedCallback() {
-    this.innerHTML = `
+    connectedCallback() {
+        this.innerHTML = `
       <div class="viewer flex flex-col gap-2 my-3">
         <div class="tabs flex gap-1 flex-wrap border-b border-black/10 dark:border-white/10 pb-1"></div>
         <div class="panes border border-black/10 dark:border-white/10 rounded-b-md bg-white dark:bg-neutral-900 p-3"></div>
       </div>
     `;
-    this.$tabs = this.querySelector('.tabs');
-    this.$panes = this.querySelector('.panes');
-    // Listen globally for open events
-    this._onOpen = (ev) => {
-      const det = ev.detail || {};
-      if (!det || (!det.id && !det.meta_dir)) return;
-      this.openMovie(det);
-    };
-    document.addEventListener('movie-search:open', this._onOpen);
-    this.addEventListener('movie-search:open', this._onOpen);
-    // Listen for successful upserts to update any open TMDB tab state
-    this._onUpsertSuccess = (ev) => {
-      const detail = ev.detail || {};
-      const path = (detail.path || '').toString().replace(/\\/g, '/');
-      let dir = path;
-      if (dir.endsWith('meta.json')) dir = dir.slice(0, -'meta.json'.length);
-      dir = dir.replace(/\/+$/, '');
-      const active = this._tabs.find(t => t.active && t.source === 'tmdb');
-      if (active && !active.localMetaDir && dir) {
-        active.localMetaDir = dir;
-        this._renderTabs();
-        this._renderPaneContent(active);
-      }
-    };
-    document.addEventListener('movie-upsert:success', this._onUpsertSuccess);
-  }
+        this.$tabs = this.querySelector('.tabs');
+        this.$panes = this.querySelector('.panes');
+        // Listen globally for open events
+        this._onOpen = (ev) => {
+            const det = ev.detail || {};
+            if (!det || (!det.id && !det.meta_dir)) return;
+            this.openMovie(det);
+        };
+        document.addEventListener('movie-search:open', this._onOpen);
+        this.addEventListener('movie-search:open', this._onOpen);
+        // Listen for successful upserts to update any open TMDB tab state
+        this._onUpsertSuccess = (ev) => {
+            const detail = ev.detail || {};
+            const path = (detail.path || '').toString().replace(/\\/g, '/');
+            let dir = path;
+            if (dir.endsWith('meta.json')) dir = dir.slice(0, -'meta.json'.length);
+            dir = dir.replace(/\/+$/, '');
+            const active = this._tabs.find(t => t.active && t.source === 'tmdb');
+            if (active && !active.localMetaDir && dir) {
+                active.localMetaDir = dir;
+                this._renderTabs();
+                this._renderPaneContent(active);
+            }
+        };
+        document.addEventListener('movie-upsert:success', this._onUpsertSuccess);
+    }
 
     disconnectedCallback() {
         document.removeEventListener('movie-search:open', this._onOpen);
@@ -64,10 +64,10 @@ class MovieViewer extends HTMLElement {
         this._activate(key);
         // Load data (allow preloaded data to short-circuit network calls)
         try {
-          let data = null;
-          if (preloadedData) {
-            data = preloadedData;
-          } else if (source === 'local' && meta_dir) {
+            let data = null;
+            if (preloadedData) {
+                data = preloadedData;
+            } else if (source === 'local' && meta_dir) {
                 const headers = {};
                 const meta = document.querySelector('meta[name="relay-branch"]');
                 const branch = meta?.getAttribute('content') || 'main';
@@ -80,14 +80,18 @@ class MovieViewer extends HTMLElement {
                 // Also check for an existing local entry (prefer exact title + year)
                 try {
                     if (data && data.title && data.release_year != null) {
-                        const body = { params: { title: { eq: data.title }, release_year: { eq: Number(data.release_year) } }, page: 0 };
+                        const body = {
+                            params: {title: {eq: data.title}, release_year: {eq: Number(data.release_year)}},
+                            page: 0
+                        };
                         const local = await queryLocalViaServer(body, this._branch());
                         const first = (local && Array.isArray(local.rows) && local.rows[0]) ? local.rows[0] : null;
                         if (first && (first.meta_dir || first._meta_dir)) {
                             tab.localMetaDir = first.meta_dir || first._meta_dir;
                         }
                     }
-                } catch {}
+                } catch {
+                }
             }
             if (!data) throw new Error('Not found');
             tab.data = data;
@@ -100,22 +104,22 @@ class MovieViewer extends HTMLElement {
             this._renderTabs();
             const pane = this.querySelector(`#${CSS.escape(tab.paneId)}`);
             if (pane) {
-              const msg = (e && e.message) ? e.message : String(e);
-              pane.innerHTML = `
+                const msg = (e && e.message) ? e.message : String(e);
+                pane.innerHTML = `
                 <div class="text-red-600">Failed to load movie details: ${msg}</div>
                 <div style="margin-top:8px">
                 <button class="btn-refresh px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-800">Refresh</button>
                 </div>
               `;
-              const btn = pane.querySelector('.btn-refresh');
-              if (btn) btn.addEventListener('click', async () => {
-                pane.innerHTML = `<div class="text-neutral-600">Retrying…</div>`;
-                try {
-                  await this.openMovie({ source: tab.source, id: tab.id, meta_dir: tab.meta_dir });
-                } catch (err) {
-                  pane.innerHTML = `<div class="text-red-600">Retry failed: ${err && err.message ? err.message : String(err)}</div>`;
-                }
-              });
+                const btn = pane.querySelector('.btn-refresh');
+                if (btn) btn.addEventListener('click', async () => {
+                    pane.innerHTML = `<div class="text-neutral-600">Retrying…</div>`;
+                    try {
+                        await this.openMovie({source: tab.source, id: tab.id, meta_dir: tab.meta_dir});
+                    } catch (err) {
+                        pane.innerHTML = `<div class="text-red-600">Retry failed: ${err && err.message ? err.message : String(err)}</div>`;
+                    }
+                });
             }
         }
     }
@@ -134,39 +138,41 @@ class MovieViewer extends HTMLElement {
     }
 
     _renderTabs() {
-      this.$tabs.innerHTML = this._tabs.map(t => `
+        this.$tabs.innerHTML = this._tabs.map(t => `
         <div class="tab ${t.active ? 'active' : ''} flex items-center gap-1 px-2 py-1 rounded-t-md border border-black/10 dark:border-white/10 border-b-0 cursor-pointer ${t.active ? 'bg-white dark:bg-neutral-900' : 'bg-neutral-100 dark:bg-neutral-800'}" data-key="${t.key}">
           <span>${t.title}</span>
           <button class="close text-neutral-600 hover:text-neutral-900" title="Close" aria-label="Close">×</button>
         </div>
       `).join('');
-      this.$tabs.querySelectorAll('.tab').forEach(el => {
-        const key = el.getAttribute('data-key');
-        el.addEventListener('click', (ev) => {
-          if (ev.target.classList.contains('close')) return; // handled below
-          this._activate(key);
+        this.$tabs.querySelectorAll('.tab').forEach(el => {
+            const key = el.getAttribute('data-key');
+            el.addEventListener('click', (ev) => {
+                if (ev.target.classList.contains('close')) return; // handled below
+                this._activate(key);
+            });
+            el.querySelector('.close')?.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                this._close(key);
+            });
         });
-        el.querySelector('.close')?.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          this._close(key);
-        });
-      });
     }
 
     _renderPanes() {
         const existing = new Set(this._tabs.map(t => t.paneId));
-        this.$panes.querySelectorAll('.pane').forEach(p => { if (!existing.has(p.id)) p.remove(); });
+        this.$panes.querySelectorAll('.pane').forEach(p => {
+            if (!existing.has(p.id)) p.remove();
+        });
         for (const t of this._tabs) {
-          let pane = this.querySelector(`#${CSS.escape(t.paneId)}`);
-          if (!pane) {
-            pane = document.createElement('div');
-            pane.id = t.paneId;
-            pane.className = 'pane';
-            this.$panes.appendChild(pane);
-          }
-          pane.classList.toggle('hidden', !t.active);
-          if (t.data) this._renderPaneContent(t);
-          else pane.innerHTML = `<div class=\"text-neutral-600\">Loading…</div>`;
+            let pane = this.querySelector(`#${CSS.escape(t.paneId)}`);
+            if (!pane) {
+                pane = document.createElement('div');
+                pane.id = t.paneId;
+                pane.className = 'pane';
+                this.$panes.appendChild(pane);
+            }
+            pane.classList.toggle('hidden', !t.active);
+            if (t.data) this._renderPaneContent(t);
+            else pane.innerHTML = `<div class=\"text-neutral-600\">Loading…</div>`;
         }
     }
 
@@ -199,55 +205,79 @@ class MovieViewer extends HTMLElement {
     `;
         // Wire Create button to open the modal prefilled
         if (tab.source === 'tmdb' && !localMetaDir) {
-          const btn = pane.querySelector('.btn-create');
-          if (btn) {
-            // Notify listeners that a create button is available for this tab
-            try {
-              this.dispatchEvent(new CustomEvent('movie-viewer:create-ready', { detail: { key: tab.key, id: tab.id, source: tab.source }, bubbles: true, composed: true }));
-            } catch (e) {}
-            btn.addEventListener('click', async () => {
-              const modal = document.getElementById('create-modal');
-              const metaToPopulate = {
-                title: d.title,
-                release_date: d.release_date,
-                release_year: d.release_year,
-                genre: Array.isArray(d.genre) ? d.genre : [],
-                overview: d.overview,
-                url_poster: d.url_poster,
-                url_backdrop: d.url_backdrop
-              };
-              // Try to find upsert immediately
-              let upsert = modal?.querySelector('movie-upsert');
-              // If not found, allow custom element upgrade / insertion to run and try again
-              if (!upsert) {
+            const btn = pane.querySelector('.btn-create');
+            if (btn) {
+                // Notify listeners that a create button is available for this tab
                 try {
-                  // Wait for the movie-upsert element to be defined (if script loads later)
-                  if (window.customElements && typeof window.customElements.whenDefined === 'function') {
-                    await window.customElements.whenDefined('movie-upsert');
-                  }
-                } catch (e) {}
-                // microtask yield to allow connectedCallback to move children into modal
-                await new Promise(r => setTimeout(r, 0));
-                upsert = modal?.querySelector('movie-upsert') || document.querySelector('movie-upsert');
-              }
-              if (upsert && typeof upsert.populate === 'function') {
-                try { upsert.populate(metaToPopulate); } catch (e) { console.error('populate failed', e); }
-                // Notify that the upsert form has been populated
-                try {
-                  modal?.dispatchEvent(new CustomEvent('movie-upsert:populated', { detail: metaToPopulate, bubbles: true, composed: true }));
-                } catch (e) {}
-              } else {
-                console.warn('movie-upsert element not found to populate');
-              }
-              modal?.open?.();
-            });
-          }
+                    this.dispatchEvent(new CustomEvent('movie-viewer:create-ready', {
+                        detail: {
+                            key: tab.key,
+                            id: tab.id,
+                            source: tab.source
+                        }, bubbles: true, composed: true
+                    }));
+                } catch (e) {
+                }
+                btn.addEventListener('click', async () => {
+                    const modal = document.getElementById('create-modal');
+                    const metaToPopulate = {
+                        title: d.title,
+                        release_date: d.release_date,
+                        release_year: d.release_year,
+                        genre: Array.isArray(d.genre) ? d.genre : [],
+                        overview: d.overview,
+                        url_poster: d.url_poster,
+                        url_backdrop: d.url_backdrop
+                    };
+                    // Try to find upsert immediately
+                    let upsert = modal?.querySelector('movie-upsert');
+                    // If not found, allow custom element upgrade / insertion to run and try again
+                    if (!upsert) {
+                        try {
+                            // Wait for the movie-upsert element to be defined (if script loads later)
+                            if (window.customElements && typeof window.customElements.whenDefined === 'function') {
+                                await window.customElements.whenDefined('movie-upsert');
+                            }
+                        } catch (e) {
+                        }
+                        // microtask yield to allow connectedCallback to move children into modal
+                        await new Promise(r => setTimeout(r, 0));
+                        upsert = modal?.querySelector('movie-upsert') || document.querySelector('movie-upsert');
+                    }
+                    if (upsert && typeof upsert.populate === 'function') {
+                        try {
+                            upsert.populate(metaToPopulate);
+                        } catch (e) {
+                            console.error('populate failed', e);
+                        }
+                        // Notify that the upsert form has been populated
+                        try {
+                            modal?.dispatchEvent(new CustomEvent('movie-upsert:populated', {
+                                detail: metaToPopulate,
+                                bubbles: true,
+                                composed: true
+                            }));
+                        } catch (e) {
+                        }
+                    } else {
+                        console.warn('movie-upsert element not found to populate');
+                    }
+                    modal?.open?.();
+                });
+            }
         }
 
         // Dispatch an event after pane content is rendered so tests/stories can react
         try {
-          this.dispatchEvent(new CustomEvent('movie-viewer:rendered', { detail: { key: tab.key, id: tab.id, source: tab.source }, bubbles: true, composed: true }));
-        } catch (e) {}
+            this.dispatchEvent(new CustomEvent('movie-viewer:rendered', {
+                detail: {
+                    key: tab.key,
+                    id: tab.id,
+                    source: tab.source
+                }, bubbles: true, composed: true
+            }));
+        } catch (e) {
+        }
     }
 }
 

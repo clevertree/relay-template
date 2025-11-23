@@ -28,18 +28,26 @@ metaSchema:
     overview:
       type: string
       description: Short description/overview
-  required: [title, release_date, genre]
+    hash_torrent:
+      type: array
+      items: { type: string }
+      description: Torrent Hashs
+    hash_ipfs:
+      type: array
+      items: { type: string }
+      description: IPFS Hashs
+  required: [ title, release_date, genre ]
   additionalProperties: true
 db:
   engine: polodb
   # Template-specific: store docs in a "movies" collection
   collection: movies
   # Unique key per branch: Title + Release Year
-  unique: [_branch, title, release_year]
+  unique: [ _branch, title, release_year ]
   indexes:
-    - fields: [title]
-    - fields: [release_year]
-    - fields: [genre]
+    - fields: [ title ]
+    - fields: [ release_year ]
+    - fields: [ genre ]
   # Map DB document fields from meta.json; system fields _branch/_meta_dir/_created_at/_updated_at are injected automatically
   mapping:
     - name: title
@@ -60,9 +68,9 @@ db:
       type: string
   queryPolicy:
     fields:
-      - { name: title, ops: [eq, in] }
-      - { name: release_year, ops: [eq, gte, lte] }
-      - { name: genre, ops: [contains] }
+      - { name: title, ops: [ eq, in ] }
+      - { name: release_year, ops: [ eq, gte, lte ] }
+      - { name: genre, ops: [ contains ] }
     sort:
       - { field: release_date, dir: desc }
       - { field: title, dir: asc }
