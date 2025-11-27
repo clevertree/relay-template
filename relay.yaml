@@ -136,7 +136,7 @@ git:
     # The peer list is read from this environment variable. The value is a
     # semicolon-separated list of hostnames.
     # Example:
-    #   RELAY_MASTER_PEER_LIST=node1.relaynet.online;node2.relaynet.online;node3.relaynet.online
+    #   RELAY_MASTER_PEER_LIST=node-dfw1.relaynet.online.online;node2.relaynet.online;node3.relaynet.online
     peersEnv: "RELAY_MASTER_PEER_LIST"
     # Auto-push runs asynchronously and should not block the commit path
     async: true
