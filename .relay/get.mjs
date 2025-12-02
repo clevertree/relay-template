@@ -1,24 +1,26 @@
 #!/usr/bin/env node
-// get.mjs — IPFS/Git miss resolver
+// get.mjs — Git-first resolver with optional IPFS fallback for files
 // Env:
 //  - GIT_DIR: path to bare git dir
-//  - BRANCH: branch name
-//  - REL_PATH: path within repo (no leading slash)
-//  - CACHE_ROOT: optional cache directory (default: /srv/relay/ipfs-cache)
-// Output: JSON to stdout
+//  - BRANCH: branch name (default: main)
+//  - REL_PATH: path within repo (may have leading/trailing slashes)
+// Behavior:
+//  - If the request targets a directory (REL_PATH empty or ends with '/'), DO NOT query IPFS.
+//    Return a Markdown document that lists directory entries from Git only.
+//  - If the request targets a file:
+//      • Serve from Git if it exists.
+//      • Otherwise, if a root IPFS CID is configured, attempt to fetch the file from IPFS.
+//  - If not found, return { kind: 'miss' }.
+// Output (JSON to stdout):
 //  { kind: "file", contentType, bodyBase64 }
-//  { kind: "dir", items: [ { name, source } ] }
 //  { kind: "miss" }
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import fs from 'node:fs';
-import path from 'node:path';
 
 function env(name, def) { const v = process.env[name]; return v == null ? def : v; }
 const GIT_DIR = env('GIT_DIR');
 const BRANCH = env('BRANCH', 'main');
-const REL = (env('REL_PATH', '') || '').replace(/^\/+/, '');
-const CACHE_ROOT = env('CACHE_ROOT', '/srv/relay/ipfs-cache');
+const RAW_REL = env('REL_PATH', '') || '';
 if (!GIT_DIR) { console.error('missing GIT_DIR'); process.exit(2); }
 
 function git(args, opts={}) { return execFileSync('git', ['--git-dir', GIT_DIR, ...args], { encoding: 'utf8', ...opts }); }
@@ -32,11 +34,43 @@ function getRootCid() {
   } catch { return null; }
 }
 
-function listGitDir(rel) {
+// Determine if a path exists in Git and whether it's a blob (file) or tree (directory)
+function gitPathType(rel) {
+  if (rel === '') return 'tree';
   try {
-    const out = git(['ls-tree', '--name-only', `${BRANCH}:${rel}`]);
-    return out.split(/\r?\n/).filter(Boolean);
-  } catch { return []; }
+    const t = git(['cat-file', '-t', `${BRANCH}:${rel}`]).trim();
+    if (t === 'blob') return 'blob';
+    if (t === 'tree') return 'tree';
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function gitReadFile(rel) {
+  try {
+    const buf = execFileSync('git', ['--git-dir', GIT_DIR, 'show', `${BRANCH}:${rel}`]);
+    return Buffer.from(buf);
+  } catch { return null; }
+}
+
+function gitListDir(rel) {
+  try {
+    const out = git(['ls-tree', `${BRANCH}:${rel}`]);
+    const lines = out.split(/\r?\n/).filter(Boolean);
+    const items = [];
+    for (const line of lines) {
+      // format: "<mode> <type> <object>\t<file>"
+      const [left, name] = line.split('\t');
+      if (!left || !name) continue;
+      const parts = left.trim().split(/\s+/);
+      const type = parts[1];
+      items.push({ name, type });
+    }
+    return items;
+  } catch {
+    return [];
+  }
 }
 
 function ipfsCat(cid, rel, timeoutMs=10000) {
@@ -45,24 +79,6 @@ function ipfsCat(cid, rel, timeoutMs=10000) {
     return Buffer.from(p.stdout);
   }
   return null;
-}
-
-function ipfsLs(cid, rel, timeoutMs=10000) {
-  const p = spawnSync('ipfs', ['ls', `${cid}/${rel}`], { encoding: 'utf8', timeout: timeoutMs });
-  if (p.status !== 0) return null;
-  // Parse names from lines (last column typically name)
-  const lines = (p.stdout || '').split(/\r?\n/).filter(Boolean);
-  const names = [];
-  for (const line of lines) {
-    const parts = line.trim().split(/\s+/);
-    const name = parts[parts.length - 1];
-    if (name && !/^[A-Za-z0-9]+$/.test(name)) { // crude filter; accept non-hash last column as name
-      names.push(name);
-    } else if (parts.length >= 3) {
-      names.push(parts[2]);
-    }
-  }
-  return names;
 }
 
 function guessContentType(p) {
@@ -78,54 +94,66 @@ function guessContentType(p) {
   return 'application/octet-stream';
 }
 
-function ensureCacheDir(cid) {
-  const dir = path.join(CACHE_ROOT, cid);
-  try { fs.mkdirSync(dir, { recursive: true }); } catch {}
-  return dir;
-}
-
-function readCache(cid, rel) {
-  const dir = ensureCacheDir(cid);
-  const p = path.join(dir, Buffer.from(rel).toString('hex') + '.json');
-  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
-}
-
-function writeCache(cid, rel, obj) {
-  const dir = ensureCacheDir(cid);
-  const p = path.join(dir, Buffer.from(rel).toString('hex') + '.json');
-  try { fs.writeFileSync(p, JSON.stringify(obj)); } catch {}
+// Directory Markdown rendering (Git only)
+function renderDirMarkdown(rel, items) {
+  const pathDisplay = ('/' + (rel || '')).replace(/\/+/, '/');
+  const header = `# Index of ${pathDisplay}`;
+  const sorted = [...items].sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'tree' ? -1 : 1; // folders first
+    return a.name.localeCompare(b.name);
+  });
+  const lines = sorted.map((it) => {
+    const label = it.type === 'tree' ? `${it.name}/` : it.name;
+    const href = it.type === 'tree' ? `./${it.name}/` : `./${it.name}`;
+    return `- [${label}](${href})`;
+  });
+  return [header, '', ...lines, ''].join('\n');
 }
 
 function main() {
   const cid = getRootCid();
-  // If no CID is present, return Git-only directory listing (if any)
-  if (!cid) {
-    const relDir = REL.replace(/\/+$/, '');
-    const gitItems = listGitDir(relDir);
-    const items = gitItems.map((name) => ({ name, source: 'git' }));
-    console.log(JSON.stringify({ kind: 'dir', items }));
+  const isDirHint = RAW_REL === '' || RAW_REL.endsWith('/');
+  const REL = (RAW_REL.replace(/^\/+/, '')).replace(/\/+$/, '');
+
+  const type = REL === '' && isDirHint ? 'tree' : gitPathType(REL);
+
+  // If directory requested (hint) or Git says it's a tree: render Markdown directory listing from Git only
+  if (isDirHint || type === 'tree') {
+    // If rel is empty and repo root, list root.
+    const items = gitListDir(REL);
+    if (!items || items.length === 0) {
+      // Directory doesn't exist in Git — do not query IPFS for directories
+      console.log(JSON.stringify({ kind: 'miss' }));
+      return;
+    }
+    const md = renderDirMarkdown(REL, items);
+    const bodyBase64 = Buffer.from(md, 'utf8').toString('base64');
+    console.log(JSON.stringify({ kind: 'file', contentType: 'text/markdown; charset=utf-8', bodyBase64 }));
     return;
   }
-  // If REL looks like a file, try IPFS cat first
-  const fileBuf = ipfsCat(cid, REL, 10000);
-  if (fileBuf) {
-    const ct = guessContentType(REL);
-    console.log(JSON.stringify({ kind: 'file', contentType: ct, bodyBase64: fileBuf.toString('base64') }));
-    return;
+
+  // If it's a file in Git, serve it
+  if (type === 'blob') {
+    const buf = gitReadFile(REL);
+    if (buf) {
+      const ct = guessContentType(REL);
+      console.log(JSON.stringify({ kind: 'file', contentType: ct, bodyBase64: buf.toString('base64') }));
+      return;
+    }
   }
-  // Directory merge: collect Git listing and IPFS listing with 10s timeout and cache
-  const relDir = REL.replace(/\/+$/, '');
-  const gitItems = listGitDir(relDir);
-  let cached = readCache(cid, relDir);
-  if (cached) { console.log(JSON.stringify(cached)); return; }
-  const ipfsItems = ipfsLs(cid, relDir, 10000) || [];
-  const set = new Set();
-  for (const n of gitItems) set.add(n);
-  for (const n of ipfsItems) set.add(n);
-  const items = Array.from(set).map((name) => ({ name, source: (gitItems.includes(name) && ipfsItems.includes(name)) ? 'both' : (gitItems.includes(name) ? 'git' : 'ipfs') }));
-  const out = { kind: 'dir', items };
-  writeCache(cid, relDir, out);
-  console.log(JSON.stringify(out));
+
+  // Not found in Git and not a directory request — optionally try IPFS for file fallback
+  if (!isDirHint && cid) {
+    const fileBuf = ipfsCat(cid, REL, 10000);
+    if (fileBuf) {
+      const ct = guessContentType(REL);
+      console.log(JSON.stringify({ kind: 'file', contentType: ct, bodyBase64: fileBuf.toString('base64') }));
+      return;
+    }
+  }
+
+  // Miss
+  console.log(JSON.stringify({ kind: 'miss' }));
 }
 
 try { main(); } catch (e) { console.log(JSON.stringify({ kind: 'miss', error: String(e && e.message || e) })); }
