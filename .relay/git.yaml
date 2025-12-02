@@ -1,7 +1,7 @@
-# Branching / merging / commit strategy rules consumed by relay-hooks.
+# Branching / merging / commit strategy configuration
 # These rules inform what is allowed to be merged/committed and what
 # automated actions should run after certain events.
-# Repo-wide origins/pull permissions (apply to all branches unless overridden)
+# Can be consumed by .relay/pre-receive.mjs or other repository scripts
 allowedOrigins:
   - "https://github.com/clevertree/relay-template/"
 allowPullFrom:
