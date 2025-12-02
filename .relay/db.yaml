@@ -1,0 +1,38 @@
+engine: polodb
+# Template-specific: store docs in a "movies" collection
+collection: movies
+# Unique key per branch: Title + Release Year
+unique: [ _branch, title, release_year ]
+indexes:
+  - fields: [ title ]
+  - fields: [ release_year ]
+  - fields: [ genre ]
+# Map DB document fields from meta.json; system fields _branch/_meta_dir/_created_at/_updated_at are injected automatically
+mapping:
+  - name: title
+    from: $.title
+    type: string
+  - name: release_date
+    from: $.release_date
+    type: string
+  - name: release_year
+    derive:
+      fn: year
+      args: [ { from: $.release_date, type: string } ]
+  - name: genre
+    from: $.genre
+    type: array[string]
+  - name: meta_dir
+    from: $meta_dir
+    type: string
+queryPolicy:
+  fields:
+    - { name: title, ops: [ eq, in ] }
+    - { name: release_year, ops: [ eq, gte, lte ] }
+    - { name: genre, ops: [ contains ] }
+  sort:
+    - { field: release_date, dir: desc }
+    - { field: title, dir: asc }
+  pagination:
+    defaultPageSize: 25
+    maxPageSize: 250
