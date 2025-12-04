@@ -22,11 +22,11 @@ Welcome! This is a sample content repository used to exercise the Relay server, 
 - The database for queries is not stored in the repo and is created separately by infrastructure.
 
 <video id="video" controls preload="metadata">
-  <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />
+  <source src="/media/cc0-videos/flower.mp4" type="video/mp4" />
   <track
     label="English"
     kind="subtitles"
     srclang="en"
-    src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.vtt"
+    src="/media/cc0-videos/flower.vtt"
     default />
 </video>
