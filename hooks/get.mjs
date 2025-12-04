@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// get.mjs — Git-first resolver with optional IPFS fallback for files
+// get.mjs — Git-first resolver with optional IPFS fallback for files and TMDB support
 // Env:
 //  - GIT_DIR: path to bare git dir
 //  - BRANCH: branch name (default: main)
@@ -16,6 +16,7 @@
 //  { kind: "miss" }
 
 import { execFileSync, spawnSync } from 'node:child_process';
+import { getFromTmdb } from './lib/sources/tmdb.mjs';
 
 function env(name, def) { const v = process.env[name]; return v == null ? def : v; }
 const GIT_DIR = env('GIT_DIR');
@@ -27,7 +28,7 @@ function git(args, opts={}) { return execFileSync('git', ['--git-dir', GIT_DIR, 
 
 function getRootCid() {
   try {
-    const out = git(['show', `${BRANCH}:.relay/root.ipfs`]);
+    const out = git(['show', `${BRANCH}:hooks/root.ipfs`]);
     const cid = out.trim();
     if (!cid) return null;
     return cid;
@@ -110,10 +111,82 @@ function renderDirMarkdown(rel, items) {
   return [header, '', ...lines, ''].join('\n');
 }
 
+// TMDB movie Markdown rendering
+function renderTmdbMarkdown(movie) {
+  const lines = [];
+  if (movie.title) lines.push(`# ${movie.title}`);
+  if (movie.release_year) lines.push(`**Year:** ${movie.release_year}`);
+  if (movie.genre && movie.genre.length > 0) lines.push(`**Genres:** ${movie.genre.join(', ')}`);
+  if (movie.overview) lines.push(`\n${movie.overview}`);
+  if (movie.poster_path) lines.push(`\n![Poster](${movie.poster_path})`);
+  return lines.join('\n') || 'No data available';
+}
+
 function main() {
   const cid = getRootCid();
   const isDirHint = RAW_REL === '' || RAW_REL.endsWith('/');
   const REL = (RAW_REL.replace(/^\/+/, '')).replace(/\/+$/, '');
+
+  const type = REL === '' && isDirHint ? 'tree' : gitPathType(REL);
+
+  // If directory requested (hint) or Git says it's a tree: render Markdown directory listing from Git only
+  if (isDirHint || type === 'tree') {
+    // If rel is empty and repo root, list root.
+    const items = gitListDir(REL);
+    if (!items || items.length === 0) {
+      // Directory doesn't exist in Git — do not query IPFS for directories
+      console.log(JSON.stringify({ kind: 'miss' }));
+      return;
+    }
+    const md = renderDirMarkdown(REL, items);
+    const bodyBase64 = Buffer.from(md, 'utf8').toString('base64');
+    console.log(JSON.stringify({ kind: 'file', contentType: 'text/markdown; charset=utf-8', bodyBase64 }));
+    return;
+  }
+
+  // If it's a file in Git, serve it
+  if (type === 'blob') {
+    const buf = gitReadFile(REL);
+    if (buf) {
+      const ct = guessContentType(REL);
+      console.log(JSON.stringify({ kind: 'file', contentType: ct, bodyBase64: buf.toString('base64') }));
+      return;
+    }
+  }
+
+  // Not found in Git and not a directory request — optionally try IPFS for file fallback
+  if (!isDirHint && cid) {
+    const fileBuf = ipfsCat(cid, REL, 10000);
+    if (fileBuf) {
+      const ct = guessContentType(REL);
+      console.log(JSON.stringify({ kind: 'file', contentType: ct, bodyBase64: fileBuf.toString('base64') }));
+      return;
+    }
+  }
+
+  // Miss
+  console.log(JSON.stringify({ kind: 'miss' }));
+}
+
+async function main() {
+  const cid = getRootCid();
+  const isDirHint = RAW_REL === '' || RAW_REL.endsWith('/');
+  const REL = (RAW_REL.replace(/^\/+/, '')).replace(/\/+$/, '');
+
+  // Try TMDB lookup if path looks like a movie ID (numeric)
+  if (!isDirHint && /^\d+$/.test(REL)) {
+    try {
+      const movie = await getFromTmdb(REL);
+      if (movie) {
+        const md = renderTmdbMarkdown(movie);
+        const bodyBase64 = Buffer.from(md, 'utf8').toString('base64');
+        console.log(JSON.stringify({ kind: 'file', contentType: 'text/markdown; charset=utf-8', bodyBase64 }));
+        return;
+      }
+    } catch (err) {
+      // Fall through to git/ipfs
+    }
+  }
 
   const type = REL === '' && isDirHint ? 'tree' : gitPathType(REL);
 

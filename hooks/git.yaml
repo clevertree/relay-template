@@ -1,7 +1,7 @@
 # Branching / merging / commit strategy configuration
 # These rules inform what is allowed to be merged/committed and what
 # automated actions should run after certain events.
-# Can be consumed by .relay/pre-receive.mjs or other repository scripts
+# Can be consumed by hooks/pre-receive.mjs or other repository scripts
 allowedOrigins:
   - "https://github.com/clevertree/relay-template/"
 allowPullFrom:

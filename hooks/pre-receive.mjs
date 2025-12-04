@@ -3,7 +3,7 @@
 // Triggered by git push/receive operations before accepting commits
 // Responsibilities:
 //  - Validate commits meet repository requirements
-//  - If this commit changes .relay/pre-commit.mjs or .relay/pre-receive.mjs, require a signed commit
+//  - If this commit changes hooks/pre-commit.mjs or hooks/pre-receive.mjs, require a signed commit
 //  - Run validation.mjs in a restricted sandbox to enforce whitelist + validation
 //  - Maintain a lightweight JSON index (relay_index.json) for changed meta.yaml
 

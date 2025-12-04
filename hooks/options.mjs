@@ -75,10 +75,10 @@ function main() {
     branchHeads: branchHeads,
     capabilities: {
       supports: ['GET', 'PUT', 'DELETE', 'OPTIONS', 'QUERY'],
-      validation: '.relay/pre-commit.mjs and .relay/pre-receive.mjs',
+      validation: 'hooks/pre-commit.mjs and hooks/pre-receive.mjs',
       hooks: {
-        preCommit: '.relay/pre-commit.mjs (executed on PUT)',
-        preReceive: '.relay/pre-receive.mjs (executed on git push)',
+        preCommit: 'hooks/pre-commit.mjs (executed on PUT)',
+        preReceive: 'hooks/pre-receive.mjs (executed on git push)',
       },
     },
   };
