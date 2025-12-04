@@ -17,6 +17,7 @@
 let tmdbClient = null;
 let movieViewComponent = null;
 let searchUIHelpers = null;
+let createViewComponent = null;
 
 // Genre cache for TMDB
 let genreCache = null;
@@ -112,7 +113,7 @@ async function searchTmdb(query, apiKey, bearerToken) {
 /**
  * Render single movie detail view
  */
-function renderMovieView(h, movie, onBack) {
+function renderMovieView(h, movie, onBack, onAddToLibrary) {
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : null;
@@ -121,11 +122,17 @@ function renderMovieView(h, movie, onBack) {
     : null;
 
   return h('div', { className: 'movie-detail space-y-6' },
-    // Back button
-    h('button', {
-      onClick: onBack,
-      className: 'px-4 py-2 bg-gray-600 text-white rounded text-sm font-medium hover:bg-gray-700',
-    }, '← Back'),
+    // Back button and Add to Library button
+    h('div', { className: 'flex gap-2' },
+      h('button', {
+        onClick: onBack,
+        className: 'px-4 py-2 bg-gray-600 text-white rounded text-sm font-medium hover:bg-gray-700',
+      }, '← Back'),
+      onAddToLibrary && h('button', {
+        onClick: onAddToLibrary,
+        className: 'px-4 py-2 bg-emerald-600 text-white rounded text-sm font-medium hover:bg-emerald-700',
+      }, '➕ Add to Library'),
+    ),
 
     // Backdrop
     backdropUrl && h('div', { className: 'relative w-full h-64 md:h-96 overflow-hidden rounded-lg' },
@@ -214,6 +221,128 @@ function renderMovieView(h, movie, onBack) {
   );
 }
 
+/**
+ * Render create movie form (inline fallback)
+ */
+function renderCreateView(h, movie, onBack, onSubmit) {
+  const posterUrl = movie?.poster_path
+    ? `https://image.tmdb.org/t/p/w200${movie.poster_path}`
+    : null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    if (data.runtime) data.runtime = parseInt(data.runtime, 10);
+    if (data.budget) data.budget = parseInt(data.budget, 10);
+    if (data.revenue) data.revenue = parseInt(data.revenue, 10);
+    if (data.vote_average) data.vote_average = parseFloat(data.vote_average);
+    if (data.genres) {
+      data.genres = data.genres.split(',').map(g => g.trim()).filter(Boolean);
+    }
+    
+    if (onSubmit) onSubmit(data);
+  };
+
+  return h('div', { className: 'create-movie-form space-y-6 max-w-4xl mx-auto' },
+    h('div', { className: 'flex items-center justify-between' },
+      h('button', {
+        type: 'button',
+        onClick: onBack,
+        className: 'px-4 py-2 bg-gray-600 text-white rounded text-sm font-medium hover:bg-gray-700',
+      }, '← Back'),
+      h('h1', { className: 'text-2xl font-bold text-gray-900 dark:text-white' }, 'Add Movie to Library'),
+      h('div', { className: 'w-20' }),
+    ),
+
+    movie?.id && h('div', { className: 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4' },
+      h('p', { className: 'text-sm text-blue-700 dark:text-blue-300' },
+        `Pre-filled from TMDB ID: ${movie.id}. You can edit any field before saving.`
+      ),
+    ),
+
+    h('form', { 
+      onSubmit: handleSubmit,
+      className: 'space-y-6',
+    },
+      h('div', { className: 'flex flex-col md:flex-row gap-6' },
+        posterUrl && h('div', { className: 'flex-shrink-0' },
+          h('img', {
+            src: posterUrl,
+            alt: movie?.title || 'Movie poster',
+            className: 'w-32 md:w-48 rounded-lg shadow-lg',
+          }),
+        ),
+
+        h('div', { className: 'flex-1 space-y-4' },
+          h('div', { className: 'space-y-1' },
+            h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'title' }, 'Title'),
+            h('input', { type: 'text', id: 'title', name: 'title', defaultValue: movie?.title || '', placeholder: 'Movie title', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+          ),
+          h('div', { className: 'space-y-1' },
+            h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'release_date' }, 'Release Date'),
+            h('input', { type: 'date', id: 'release_date', name: 'release_date', defaultValue: movie?.release_date || '', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+          ),
+        ),
+      ),
+
+      h('div', { className: 'space-y-1' },
+        h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'overview' }, 'Overview'),
+        h('textarea', { id: 'overview', name: 'overview', defaultValue: movie?.overview || '', rows: 4, placeholder: 'Movie synopsis', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+      ),
+
+      h('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4' },
+        h('div', { className: 'space-y-1' },
+          h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'runtime' }, 'Runtime (min)'),
+          h('input', { type: 'number', id: 'runtime', name: 'runtime', defaultValue: movie?.runtime || '', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+        ),
+        h('div', { className: 'space-y-1' },
+          h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'budget' }, 'Budget ($)'),
+          h('input', { type: 'number', id: 'budget', name: 'budget', defaultValue: movie?.budget || '', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+        ),
+        h('div', { className: 'space-y-1' },
+          h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'revenue' }, 'Revenue ($)'),
+          h('input', { type: 'number', id: 'revenue', name: 'revenue', defaultValue: movie?.revenue || '', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+        ),
+      ),
+
+      h('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+        h('div', { className: 'space-y-1' },
+          h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'vote_average' }, 'Rating (0-10)'),
+          h('input', { type: 'number', id: 'vote_average', name: 'vote_average', step: '0.1', defaultValue: movie?.vote_average?.toFixed(1) || '', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+        ),
+        h('div', { className: 'space-y-1' },
+          h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'original_language' }, 'Language'),
+          h('input', { type: 'text', id: 'original_language', name: 'original_language', defaultValue: movie?.original_language?.toUpperCase() || '', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+        ),
+      ),
+
+      h('div', { className: 'space-y-1' },
+        h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'genres' }, 'Genres (comma-separated)'),
+        h('input', { type: 'text', id: 'genres', name: 'genres', defaultValue: movie?.genres?.map(g => g.name || g).join(', ') || '', placeholder: 'Action, Drama, Sci-Fi', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+      ),
+
+      h('div', { className: 'space-y-1' },
+        h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300', htmlFor: 'homepage' }, 'Homepage URL'),
+        h('input', { type: 'url', id: 'homepage', name: 'homepage', defaultValue: movie?.homepage || '', placeholder: 'https://...', className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500' }),
+      ),
+
+      h('div', { className: 'flex gap-4 pt-4 border-t border-gray-200 dark:border-gray-700' },
+        h('button', {
+          type: 'submit',
+          className: 'px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors',
+        }, '💾 Save to Library'),
+        h('button', {
+          type: 'button',
+          onClick: onBack,
+          className: 'px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors',
+        }, 'Cancel'),
+      ),
+    ),
+  );
+}
+
 export default async function router(context) {
   const { React, createElement: h, FileRenderer, Layout, params, helpers } = context;
   const path = params.path || '';
@@ -244,6 +373,14 @@ export default async function router(context) {
         console.debug('[router] Loaded SearchUI helpers');
       } catch (err) {
         console.warn('[router] Failed to load SearchUI, using inline objects:', err);
+      }
+    }
+    if (!createViewComponent) {
+      try {
+        createViewComponent = await helpers.loadModule('./lib/components/CreateView.mjs');
+        console.debug('[router] Loaded CreateView component');
+      } catch (err) {
+        console.warn('[router] Failed to load CreateView:', err);
       }
     }
   }
@@ -277,7 +414,13 @@ export default async function router(context) {
         }
       };
 
-      return renderView(h, movie, onBack);
+      const onAddToLibrary = () => {
+        if (helpers.navigate) {
+          helpers.navigate(`/create/tmdb/${id}`);
+        }
+      };
+
+      return renderView(h, movie, onBack, onAddToLibrary);
     }
 
     // source: local — future implementation
@@ -286,6 +429,73 @@ export default async function router(context) {
     }
 
     return h('div', { className: 'p-8 text-red-500' }, `Unknown source: ${source}`);
+  }
+
+  // Route: /create/tmdb/[id] — Create form pre-filled with TMDB data
+  const createTmdbMatch = path.match(/^\/create\/tmdb\/(\d+)$/);
+  if (createTmdbMatch) {
+    const [, id] = createTmdbMatch;
+    console.debug('[router] Create from TMDB route matched:', { id });
+
+    const fetchCreds = tmdbClient?.fetchTmdbCredentials || fetchTmdbCredentials;
+    const fetchMovie = tmdbClient?.fetchTmdbMovie || fetchTmdbMovie;
+    const renderCreate = createViewComponent?.renderCreateView || renderCreateView;
+
+    const creds = await fetchCreds();
+    if (!creds || (!creds.apiKey && !creds.bearerToken)) {
+      return h('div', { className: 'p-8 text-red-500' }, 'TMDB credentials not configured');
+    }
+
+    const movie = await fetchMovie(id, creds.apiKey, creds.bearerToken);
+    if (!movie) {
+      return h('div', { className: 'p-8 text-red-500' }, `Movie not found: ${id}`);
+    }
+
+    const onBack = () => {
+      if (helpers.navigate) {
+        helpers.navigate(`/view/tmdb/${id}`);
+      } else if (typeof window !== 'undefined') {
+        window.history.back();
+      }
+    };
+
+    const onSubmit = async (formData) => {
+      console.debug('[router] Create form submitted:', formData);
+      // TODO: Send to server API to save movie
+      // For now, just log and show success message
+      alert(`Movie "${formData.title}" would be saved to library!\n\nData: ${JSON.stringify(formData, null, 2)}`);
+      if (helpers.navigate) {
+        helpers.navigate('/');
+      }
+    };
+
+    return renderCreate(h, movie, onBack, onSubmit);
+  }
+
+  // Route: /create — Empty create form
+  if (path === '/create') {
+    console.debug('[router] Empty create route');
+
+    const renderCreate = createViewComponent?.renderCreateView || renderCreateView;
+
+    const onBack = () => {
+      if (helpers.navigate) {
+        helpers.navigate('/');
+      } else if (typeof window !== 'undefined') {
+        window.history.back();
+      }
+    };
+
+    const onSubmit = async (formData) => {
+      console.debug('[router] Create form submitted:', formData);
+      // TODO: Send to server API to save movie
+      alert(`Movie "${formData.title}" would be saved to library!\n\nData: ${JSON.stringify(formData, null, 2)}`);
+      if (helpers.navigate) {
+        helpers.navigate('/');
+      }
+    };
+
+    return renderCreate(h, null, onBack, onSubmit);
   }
 
   // Route: /search/[query] — Search results

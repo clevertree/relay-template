@@ -3,7 +3,7 @@
  * Used by router.mjs for /view/tmdb/[id] routes
  */
 
-export function renderMovieView(h, movie, onBack) {
+export function renderMovieView(h, movie, onBack, onAddToLibrary) {
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : null;
@@ -12,11 +12,17 @@ export function renderMovieView(h, movie, onBack) {
     : null;
 
   return h('div', { className: 'movie-detail space-y-6' },
-    // Back button
-    h('button', {
-      onClick: onBack,
-      className: 'px-4 py-2 bg-gray-600 text-white rounded text-sm font-medium hover:bg-gray-700',
-    }, '← Back'),
+    // Back button and Add to Library button
+    h('div', { className: 'flex gap-2' },
+      h('button', {
+        onClick: onBack,
+        className: 'px-4 py-2 bg-gray-600 text-white rounded text-sm font-medium hover:bg-gray-700',
+      }, '← Back'),
+      onAddToLibrary && h('button', {
+        onClick: onAddToLibrary,
+        className: 'px-4 py-2 bg-emerald-600 text-white rounded text-sm font-medium hover:bg-emerald-700',
+      }, '➕ Add to Library'),
+    ),
 
     // Backdrop
     backdropUrl && h('div', { className: 'relative w-full h-64 md:h-96 overflow-hidden rounded-lg' },
