@@ -1,4 +1,6 @@
-/* @jsx h */
+/**
+ * CreateView component - JSX transpiled by RepoBrowser
+ */
 import type { TMDBMovie } from '../../types'
 
 type FormFieldOpts = { multiline?: boolean; readonly?: boolean; placeholder?: string }

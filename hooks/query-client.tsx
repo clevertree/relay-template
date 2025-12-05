@@ -1,4 +1,7 @@
-/* @jsx h */
+/**
+ * query-client.tsx — Repository-owned UI for search/query routes
+ * JSX is transpiled by RepoBrowser using @babel/standalone
+ */
 import type { HookContext, TMDBMovie } from './types'
 
 export default async function queryHook(ctx: HookContext) {

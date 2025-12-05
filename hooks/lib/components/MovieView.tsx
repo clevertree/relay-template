@@ -1,4 +1,6 @@
-/* @jsx h */
+/**
+ * MovieView component - JSX transpiled by RepoBrowser
+ */
 import type { TMDBMovie } from '../../types'
 
 export function renderMovieView(

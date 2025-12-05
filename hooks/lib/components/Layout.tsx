@@ -1,9 +1,9 @@
-/* @jsx h */
 /**
  * Repo UI Layout component (TSX)
  * - Path input + Go
  * - Branch dropdown
  * - Search form to /search/[query]
+ * JSX is transpiled by RepoBrowser using @babel/standalone
  */
 import type { HookParams, Helpers } from '../../types'
 import type { ReactNode } from 'react'
