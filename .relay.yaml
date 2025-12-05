@@ -1,0 +1,15 @@
+name: "Movie Repository"
+version: "1.0.0"
+description: "A repository of movies using the Relay protocol."
+client:
+  hooks:
+    get:
+      path: /hooks/get-client.tsx
+    query:
+      path: /hooks/query-client.tsx
+server:
+  hooks:
+    pre-commit:
+      path: /hooks/pre-commit.mjs
+    pre-receive:
+      path: /hooks/pre-receive.mjs

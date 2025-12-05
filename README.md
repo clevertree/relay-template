@@ -16,10 +16,10 @@ The `hooks/` folder contains executable scripts that customize repository behavi
 ### Client-Side Hooks
 These run in the browser or client application when users interact with the repository:
 
-| Hook | Purpose |
-|------|---------|
-| `router.mjs` | Handles all client-side routing: file serving (`/path`), search results (`/search/[query]`), and detail views (`/view/[source]/[id]`) |
-| `put.mjs` | Handles file uploads and modifications |
+| Hook             | Purpose |
+|------------------|---------|
+| `get-client.tsx` | Handles all client-side routing: file serving (`/path`), search results (`/search/[query]`), and detail views (`/view/[source]/[id]`) |
+| `put.mjs`        | Handles file uploads and modifications |
 
 **Router Routes:**
 - `/[path]` — Fetch and render file (e.g., `/README.md`, `/data/movies.json`)
