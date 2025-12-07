@@ -4,12 +4,10 @@ description: "A repository of movies using the Relay protocol."
 client:
   hooks:
     get:
-      path: /hooks/get-client.jsx
-    query:
-      path: /hooks/query-client.jsx
+      path: /hooks/client/get-client.jsx
 server:
   hooks:
     pre-commit:
-      path: /hooks/pre-commit.mjs
+      path: /hooks/server/pre-commit.mjs
     pre-receive:
-      path: /hooks/pre-receive.mjs
+      path: /hooks/server/pre-receive.mjs

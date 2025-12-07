@@ -31,7 +31,6 @@ All template UI colors have been centralized in `/lib/colors.js` for easy mainte
 ## Files Updated
 
 - ✅ `/lib/colors.js` - Color definitions
-- ✅ `/lib/colors.css` - CSS color variables
 - ✅ `/lib/components/Layout.jsx` - Uses Tailwind color classes
 - ✅ `/query-client.jsx` - Uses Tailwind color classes
 - ⏳ `/lib/components/MovieView.jsx` - (contains consistent colors)
@@ -59,7 +58,6 @@ className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
 
 1. Add to `COLORS` object in `/lib/colors.js`
 2. Add corresponding `COLOR_CLASSES` entry
-3. Add CSS variable to `/lib/colors.css`
 4. Update this documentation
 
 ## Theme Consistency
