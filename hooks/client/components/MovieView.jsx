@@ -12,6 +12,7 @@ export function renderMovieView(
   movie,
   onBack,
   onAddToLibrary,
+  onNavigate,
 ) {
   const posterUrl = movie && movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null
   const backdropUrl = movie && movie.backdrop_path ? `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}` : null
@@ -92,7 +93,36 @@ export function renderMovieView(
             )}
           </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 pt-4 flex-wrap">
+            {/* Playback / Acquisition actions */}
+            {Array.isArray(movie.sources) && movie.sources.length > 0 ? (
+              <button
+                onClick={() => {
+                  if (typeof onNavigate === 'function') {
+                    // Future: navigate to an internal player route
+                    const src = String(movie.sources[0])
+                    onNavigate(`/play?src=${encodeURIComponent(src)}`)
+                  }
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded transition"
+              >
+                ▶ Play
+              </button>
+            ) : (
+              movie?.title && (
+                <button
+                  onClick={() => {
+                    if (typeof onNavigate === 'function') {
+                      onNavigate(`/search/${encodeURIComponent(String(movie.title))}%20source:yts`)
+                    }
+                  }}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition"
+                >
+                  ⬇️ Download on YTS
+                </button>
+              )
+            )}
+
             {movie.homepage && (
               <a href={movie.homepage} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition">🌐 Official Site</a>
             )}

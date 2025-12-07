@@ -64,6 +64,15 @@ export default function Layout(props) {
           <form className="flex items-center gap-2 ml-auto" onSubmit={onSubmitSearch}>
             <input type="search" name="q" placeholder="Search…" className="px-2 py-1 border border-gray-300 rounded text-sm" />
             <button type="submit" className="px-3 py-1 bg-gray-700 hover:bg-gray-800 text-white rounded text-sm">Search</button>
+            <button 
+              type="button" 
+              onClick={() => {
+                if (helpers && helpers.navigate) helpers.navigate('/')
+              }}
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm"
+            >
+              ← Back
+            </button>
           </form>
         </div>
       </div>

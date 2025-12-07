@@ -1,11 +1,11 @@
 /**
  * TMDB Plugin - Handles all TMDB-related logic
  * Provides GET and QUERY hook handlers for Relay protocol
- * 
+ *
  * GET Hooks:
  *   - /view/tmdb/{id} — Display movie details
  *   - /create/tmdb/{id} — Pre-fill form from TMDB
- * 
+ *
  * QUERY Hook:
  *   - Search movies across TMDB
  */
@@ -117,7 +117,7 @@ async function searchTmdb(query, apiKey, bearerToken) {
 /**
  * GET Hook Handler
  * Handles GET requests that match TMDB patterns
- * 
+ *
  * @param {string} path - The request path
  * @param {Object} ctx - Plugin context (React, helpers, etc.)
  * @returns {Object|null} - Rendered JSX or null if path doesn't match
@@ -135,16 +135,20 @@ export async function handleGetRequest(path, ctx) {
         console.debug('[tmdb-plugin] GET handler: view route for id:', id);
 
         try {
+            const creds = await fetchTmdbCredentials();
+            if (!creds || (!creds.apiKey && !creds.bearerToken)) {
+                return h('div', {className: 'p-8 text-red-500'}, 'TMDB credentials not configured');
+            }
+
             const movieViewComponent = await helpers.loadModule('./components/MovieView.jsx');
-            const movie = await fetchTmdbMovie(id, '', '');
-            
+            const movie = await fetchTmdbMovie(id, creds.apiKey || '', creds.bearerToken || '');
+
             if (!movie) {
                 return h('div', {className: 'p-8 text-red-500'}, `TMDB unavailable or movie not found: ${id}`);
             }
 
             const onBack = () => {
                 if (helpers.navigate) helpers.navigate('/');
-                else if (typeof window !== 'undefined') window.history.back();
             };
 
             const onAddToLibrary = () => {
@@ -156,7 +160,7 @@ export async function handleGetRequest(path, ctx) {
                 return h('div', {className: 'p-4'}, 'Movie view component missing');
             }
 
-            return renderView(h, movie, onBack, onAddToLibrary);
+            return renderView(h, movie, onBack, onAddToLibrary, helpers.navigate);
         } catch (err) {
             console.error('[tmdb-plugin] Error loading movie view:', err);
             return h('div', {className: 'p-8 text-red-500'}, `Error: ${err.message}`);
@@ -183,7 +187,6 @@ export async function handleGetRequest(path, ctx) {
             const createViewComponent = await helpers.loadModule('./components/CreateView.jsx');
             const onBack = () => {
                 if (helpers.navigate) helpers.navigate(`/view/tmdb/${id}`);
-                else if (typeof window !== 'undefined') window.history.back();
             };
 
             const onSubmit = async (formData) => {
@@ -211,7 +214,7 @@ export async function handleGetRequest(path, ctx) {
 /**
  * QUERY Hook Handler
  * Handles search requests and combines TMDB results with other sources
- * 
+ *
  * @param {string} query - Search query string
  * @param {Object} options - Search options (page, source, etc.)
  * @param {Object} ctx - Plugin context

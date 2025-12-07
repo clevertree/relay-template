@@ -8,6 +8,7 @@
 console.log('[get-client] Module loaded')
 
 let tmdbPlugin = null
+let ytsPlugin = null
 let layoutComponent = null
 
 /**
@@ -44,6 +45,7 @@ export default async function getClient(ctx) {
 
         async function lazyLoadComponents() {
             if (!tmdbPlugin) tmdbPlugin = await loadPlugin('tmdb', helpers);
+            if (!ytsPlugin) ytsPlugin = await loadPlugin('yts', helpers);
             if (!layoutComponent) layoutComponent = await helpers.loadModule('./components/Layout.jsx');
         }
 
@@ -53,7 +55,7 @@ export default async function getClient(ctx) {
             if (!layoutComponent && typeof helpers?.loadModule === 'function') {
                 try {
                     console.log('[wrap] Layout not loaded, attempting lazy load...')
-                    layoutComponent = await helpers.loadModule('./lib/components/Layout.jsx');
+                    layoutComponent = await helpers.loadModule('./components/Layout.jsx');
                     console.log('[wrap] Layout loaded successfully')
                 } catch (err) {
                     console.warn('[wrap] Failed to load Layout component:', err);
@@ -78,7 +80,15 @@ export default async function getClient(ctx) {
         if (tmdbPlugin && typeof tmdbPlugin.handleGetRequest === 'function') {
             pluginResult = await tmdbPlugin.handleGetRequest(path, {React, createElement: h, FileRenderer, Layout, params, helpers});
             if (pluginResult) {
-                console.log('[get-client] Plugin handled request');
+                console.log('[get-client] TMDB plugin handled request');
+                return wrap(pluginResult, await fetchOptions());
+            }
+        }
+
+        if (ytsPlugin && typeof ytsPlugin.handleGetRequest === 'function') {
+            pluginResult = await ytsPlugin.handleGetRequest(path, {React, createElement: h, FileRenderer, Layout, params, helpers});
+            if (pluginResult) {
+                console.log('[get-client] YTS plugin handled request');
                 return wrap(pluginResult, await fetchOptions());
             }
         }
@@ -114,6 +124,20 @@ export default async function getClient(ctx) {
         // Default: file route or 404
         if (FileRenderer) {
             const opts = await fetchOptions();
+            // Check if the file actually exists by doing a HEAD request first
+            try {
+                const checkResp = await fetch(path, {method: 'HEAD'});
+                if (checkResp.status === 404) {
+                    // File not found, show missing page
+                    const missingModule = await helpers.loadModule('./missing.mjs');
+                    if (missingModule && typeof missingModule.render === 'function') {
+                        return wrap(missingModule.render(h, path), opts);
+                    }
+                }
+            } catch (err) {
+                console.warn('[get-client] Failed to check file existence:', err);
+            }
+
             const element = <FileRenderer path={path}/>;
             const wrapped = wrap(element, opts);
             return wrapped;
