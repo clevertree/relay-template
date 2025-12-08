@@ -93,6 +93,13 @@ export default async function getClient(ctx) {
             }
         }
 
+        // Root path (/) - render template README.md
+        if (path === '/') {
+            console.debug('[get-client] Root path matched, rendering template README.md');
+            const readmeElement = <FileRenderer path="/README.md"/>;
+            return wrap(readmeElement, await fetchOptions());
+        }
+
         // Search route delegates to query-client
         const searchMatch = path.match(/^\/search\/([^?]+)(?:\?(.*))?$/);
         if (searchMatch) {

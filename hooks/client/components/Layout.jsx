@@ -15,7 +15,7 @@ export default function Layout(props) {
   const { h, params = {}, helpers = {}, options = {}, children } = props || {}
   const branches = (options && options.branches) || ['main']
   const currentBranch = (params && params.branch) || (options && options.repository && options.repository.currentBranch) || branches[0] || 'main'
-  const path = (params && params.path) || '/README.md'
+  const path = (params && params.path) || '/'
 
   function onSubmitPath(ev) {
     ev.preventDefault()
@@ -40,14 +40,14 @@ export default function Layout(props) {
   function onChangeBranch(ev) {
     const next = (ev && ev.target && ev.target.value) || 'main'
     if (helpers && helpers.setBranch) helpers.setBranch(next)
-    if (helpers && helpers.navigate) helpers.navigate(path || '/README.md')
+    if (helpers && helpers.navigate) helpers.navigate(path || '/')
   }
 
   return (
     <div className="flex flex-col h-full" id="layout">
       <div className="flex flex-col gap-3 p-0 border-b border-gray-300 dark:border-gray-700 flex-shrink-0">
         <form className="flex gap-2 p-2" onSubmit={onSubmitPath}>
-          <input type="text" name="path" defaultValue={path} placeholder="Enter path... (/README.md)" className="flex-1 px-2 py-2 border border-gray-300 rounded font-mono text-sm" />
+          <input type="text" name="path" defaultValue={path} placeholder="Enter path... (/ or /README.md)" className="flex-1 px-2 py-2 border border-gray-300 rounded font-mono text-sm" />
           <button type="submit" className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white border-none rounded cursor-pointer text-sm font-medium">Go</button>
         </form>
         <div className="flex gap-4 p-2 items-center">
