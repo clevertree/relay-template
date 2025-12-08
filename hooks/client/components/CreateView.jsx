@@ -12,18 +12,33 @@ export function renderCreateView(
   prefillData,
   onBack,
   onSubmit,
+  theme = null,
 ) {
+  // Use provided theme or fallback to default dark theme colors
+  const defaultDarkTheme = {
+    colors: {
+      textSecondary: '#d1d5db',
+      border: '#374151',
+      bgTertiary: '#374151',
+      bgSecondary: '#1f2937',
+      textPrimary: '#f3f4f6',
+      primary: '#2563eb',
+      buttonSecondary: '#374151',
+      buttonSecondaryHover: '#1f2937'
+    }
+  }
+  const themeColors = (theme && theme.colors) ? theme.colors : defaultDarkTheme.colors
   const movie = prefillData || {}
 
   const FormField = (label, name, value, type = 'text', options = {}) => {
     const { multiline, readonly, placeholder } = options
     return (
       <div className="space-y-1">
-        <label className="block text-sm font-medium" htmlFor={name} style={{ color: 'var(--color-text-light)' }}>{label}</label>
+        <label className="block text-sm font-medium" htmlFor={name} style={{ color: themeColors.textSecondary }}>{label}</label>
         {multiline ? (
-          <textarea id={name} name={name} defaultValue={(value || '')} placeholder={placeholder || ''} readOnly={readonly} rows={4} className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{ borderColor: 'var(--color-border-dark)', backgroundColor: readonly ? 'var(--color-bg-light)' : 'var(--color-bg-dark)', color: 'var(--color-text-white)', focusRing: 'var(--color-primary)', cursor: readonly ? 'not-allowed' : 'auto' }} />
+          <textarea id={name} name={name} defaultValue={(value || '')} placeholder={placeholder || ''} readOnly={readonly} rows={4} className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{ borderColor: themeColors.border, backgroundColor: readonly ? themeColors.bgTertiary : themeColors.bgSecondary, color: themeColors.textPrimary, focusRing: themeColors.primary, cursor: readonly ? 'not-allowed' : 'auto' }} />
         ) : (
-          <input type={type} id={name} name={name} defaultValue={(value || '')} placeholder={placeholder || ''} readOnly={readonly} className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{ borderColor: 'var(--color-border-dark)', backgroundColor: readonly ? 'var(--color-bg-light)' : 'var(--color-bg-dark)', color: 'var(--color-text-white)', focusRing: 'var(--color-primary)', cursor: readonly ? 'not-allowed' : 'auto' }} />
+          <input type={type} id={name} name={name} defaultValue={(value || '')} placeholder={placeholder || ''} readOnly={readonly} className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{ borderColor: themeColors.border, backgroundColor: readonly ? themeColors.bgTertiary : themeColors.bgSecondary, color: themeColors.textPrimary, focusRing: themeColors.primary, cursor: readonly ? 'not-allowed' : 'auto' }} />
         )}
       </div>
     )
@@ -51,8 +66,8 @@ export function renderCreateView(
   return (
     <div className="create-movie-form space-y-6 max-w-4xl mx-auto">
     <div className="flex items-center justify-between">
-        <button type="button" onClick={onBack} className="px-4 py-2 text-white rounded text-sm font-medium transition" style={{ backgroundColor: 'var(--color-button-secondary)' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--color-button-secondary-hover)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--color-button-secondary)'}>← Back</button>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-white)' }}>{movie.id ? 'Add Movie to Library' : 'Create New Movie'}</h1>
+        <button type="button" onClick={onBack} className="px-4 py-2 text-white rounded text-sm font-medium transition" style={{ backgroundColor: themeColors.buttonSecondary }} onMouseEnter={(e) => e.target.style.backgroundColor = themeColors.buttonSecondaryHover} onMouseLeave={(e) => e.target.style.backgroundColor = themeColors.buttonSecondary}}>← Back</button>
+        <h1 className="text-2xl font-bold" style={{ color: themeColors.textPrimary }}>{movie.id ? 'Add Movie to Library' : 'Create New Movie'}</h1>
         <div className="w-20" />
       </div>
 

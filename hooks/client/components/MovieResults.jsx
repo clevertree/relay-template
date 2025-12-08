@@ -7,7 +7,22 @@
  * Exported as: renderMovieResults function
  */
 
-export function renderMovieResults(h, results, source = 'tmdb', onPageChange = null, onViewMovie = null) {
+export function renderMovieResults(h, results, source = 'tmdb', onPageChange = null, onViewMovie = null, theme = null) {
+  // Use provided theme or fallback to default dark theme colors
+  const defaultDarkTheme = {
+    colors: {
+      border: '#374151',
+      bgSecondary: '#1f2937',
+      bgTertiary: '#374151',
+      primary: '#2563eb',
+      primaryDark: '#1d4ed8',
+      buttonSecondary: '#374151',
+      buttonSecondaryHover: '#1f2937',
+      textPrimary: '#f3f4f6',
+      textMuted: '#9ca3af'
+    }
+  }
+  const themeColors = (theme && theme.colors) ? theme.colors : defaultDarkTheme.colors
   if (!Array.isArray(results) || results.length === 0) {
     return <div className="p-4">No results found</div>
   }
@@ -24,7 +39,7 @@ export function renderMovieResults(h, results, source = 'tmdb', onPageChange = n
         const overview = item.overview || 'No description available.'
         
         return (
-          <div key={String(id)} className="p-3 rounded border transition flex gap-3" style={{ borderColor: 'var(--color-border-dark)', backgroundColor: 'var(--color-bg-dark)' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg-light)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg-dark)'}>
+          <div key={String(id)} className="p-3 rounded border transition flex gap-3" style={{ borderColor: themeColors.border, backgroundColor: themeColors.bgSecondary }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = themeColors.bgTertiary} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = themeColors.bgSecondary}>
             {img && (
               <div className="flex-shrink-0">
                 <img src={img} alt={title} className="w-12 h-16 object-cover rounded" />
@@ -44,9 +59,9 @@ export function renderMovieResults(h, results, source = 'tmdb', onPageChange = n
               <button 
                 onClick={() => onViewMovie && onViewMovie(id, source)}
                 className="mt-2 px-3 py-1 text-white text-xs rounded transition w-fit"
-                style={{ backgroundColor: 'var(--color-primary)' }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--color-primary-dark)'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--color-primary)'}
+                style={{ backgroundColor: themeColors.primary }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = themeColors.primaryDark}
+                onMouseLeave={(e) => e.target.style.backgroundColor = themeColors.primary}
               >
                 View
               </button>
@@ -58,7 +73,19 @@ export function renderMovieResults(h, results, source = 'tmdb', onPageChange = n
   )
 }
 
-export function renderPagination(h, currentPage, totalPages, onPrevious, onNext, onPageChange) {
+export function renderPagination(h, currentPage, totalPages, onPrevious, onNext, onPageChange, theme = null) {
+  // Use provided theme or fallback to default dark theme colors
+  const defaultDarkTheme = {
+    colors: {
+      bgTertiary: '#374151',
+      buttonSecondary: '#374151',
+      buttonSecondaryHover: '#1f2937',
+      primary: '#2563eb',
+      textPrimary: '#f3f4f6',
+      textMuted: '#9ca3af'
+    }
+  }
+  const themeColors = (theme && theme.colors) ? theme.colors : defaultDarkTheme.colors
   if (totalPages <= 1) {
     return null
   }
@@ -69,9 +96,9 @@ export function renderPagination(h, currentPage, totalPages, onPrevious, onNext,
         onClick={onPrevious}
         disabled={currentPage <= 1}
         className="px-3 py-1 text-white text-xs rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ backgroundColor: currentPage <= 1 ? 'var(--color-bg-light)' : 'var(--color-button-secondary)' }}
-        onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = 'var(--color-button-secondary-hover)')}
-        onMouseLeave={(e) => !e.target.disabled && (e.target.style.backgroundColor = 'var(--color-button-secondary)')}
+        style={{ backgroundColor: currentPage <= 1 ? themeColors.bgTertiary : themeColors.buttonSecondary }}
+        onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = themeColors.buttonSecondaryHover)}
+        onMouseLeave={(e) => !e.target.disabled && (e.target.style.backgroundColor = themeColors.buttonSecondary)}
       >
         ← Previous
       </button>
@@ -87,11 +114,11 @@ export function renderPagination(h, currentPage, totalPages, onPrevious, onNext,
               onClick={() => pageNum !== currentPage && onPageChange && onPageChange(pageNum)}
               className="px-2 py-1 text-xs rounded transition"
               style={{ 
-                backgroundColor: isCurrentPage ? 'var(--color-primary)' : 'var(--color-button-secondary)',
-                color: isCurrentPage ? 'var(--color-text-white)' : 'var(--color-text-muted)'
+                backgroundColor: isCurrentPage ? themeColors.primary : themeColors.buttonSecondary,
+                color: isCurrentPage ? themeColors.textPrimary : themeColors.textMuted
               }}
-              onMouseEnter={(e) => !isCurrentPage && (e.target.style.backgroundColor = 'var(--color-button-secondary-hover)')}
-              onMouseLeave={(e) => !isCurrentPage && (e.target.style.backgroundColor = 'var(--color-button-secondary)')}
+              onMouseEnter={(e) => !isCurrentPage && (e.target.style.backgroundColor = themeColors.buttonSecondaryHover)}
+              onMouseLeave={(e) => !isCurrentPage && (e.target.style.backgroundColor = themeColors.buttonSecondary)}
             >
               {pageNum}
             </button>
@@ -103,9 +130,9 @@ export function renderPagination(h, currentPage, totalPages, onPrevious, onNext,
         onClick={onNext}
         disabled={currentPage >= totalPages}
         className="px-3 py-1 text-white text-xs rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ backgroundColor: currentPage >= totalPages ? 'var(--color-bg-light)' : 'var(--color-button-secondary)' }}
-        onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = 'var(--color-button-secondary-hover)')}
-        onMouseLeave={(e) => !e.target.disabled && (e.target.style.backgroundColor = 'var(--color-button-secondary)')}
+        style={{ backgroundColor: currentPage >= totalPages ? themeColors.bgTertiary : themeColors.buttonSecondary }}
+        onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = themeColors.buttonSecondaryHover)}
+        onMouseLeave={(e) => !e.target.disabled && (e.target.style.backgroundColor = themeColors.buttonSecondary)}
       >
         Next →
       </button>

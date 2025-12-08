@@ -35,10 +35,18 @@ export default async function getClient(ctx) {
 
         async function fetchOptions() {
             try {
+                console.log('[get-client] FETCH: OPTIONS / (method: OPTIONS)');
                 const resp = await fetch('/', {method: 'OPTIONS'});
-                if (!resp.ok) return {};
-                return await resp.json();
-            } catch {
+                console.log('[get-client] FETCH RESPONSE: OPTIONS / → status:', resp.status, 'ok:', resp.ok, 'contentType:', resp.headers.get('content-type'));
+                if (!resp.ok) {
+                    console.warn('[get-client] OPTIONS fetch failed, returning empty object');
+                    return {};
+                }
+                const data = await resp.json();
+                console.log('[get-client] FETCH DATA: OPTIONS / → ', Object.keys(data || {}));
+                return data;
+            } catch (err) {
+                console.error('[get-client] FETCH ERROR: OPTIONS / →', err.message);
                 return {};
             }
         }
@@ -65,7 +73,23 @@ export default async function getClient(ctx) {
             console.log('[wrap] LayoutComp:', LayoutComp?.name)
             if (!LayoutComp) {
                 console.warn('No layout was found');
-                return element;
+                // Graceful UI when Layout.jsx is missing: show a compact inline warning
+                try {
+                    const Warning = () => (
+                        <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded px-3 py-2 mb-2 text-sm">
+                          Missing hooks/client/components/Layout.jsx — rendering without layout
+                        </div>
+                    )
+                    return (
+                        <div className="p-2">
+                          <Warning />
+                          {element}
+                        </div>
+                    )
+                } catch (_e) {
+                    // If JSX render fails for any reason, just return the element
+                    return element
+                }
             }
             console.log('[wrap] Creating LayoutComp with props')
             // Use h() directly instead of JSX to avoid transpilation issues in blob context
@@ -133,8 +157,11 @@ export default async function getClient(ctx) {
             const opts = await fetchOptions();
             // Check if the file actually exists by doing a HEAD request first
             try {
+                console.log('[get-client] FETCH: HEAD', path, '(checking file existence)');
                 const checkResp = await fetch(path, {method: 'HEAD'});
+                console.log('[get-client] FETCH RESPONSE: HEAD', path, '→ status:', checkResp.status, 'ok:', checkResp.ok, 'contentType:', checkResp.headers.get('content-type'));
                 if (checkResp.status === 404) {
+                    console.log('[get-client] File not found (404), showing missing page');
                     // File not found, show missing page
                     const missingModule = await helpers.loadModule('./missing.mjs');
                     if (missingModule && typeof missingModule.render === 'function') {
@@ -142,7 +169,7 @@ export default async function getClient(ctx) {
                     }
                 }
             } catch (err) {
-                console.warn('[get-client] Failed to check file existence:', err);
+                console.warn('[get-client] FETCH ERROR: HEAD', path, '→', err.message);
             }
 
             const element = <FileRenderer path={path}/>;
