@@ -14,10 +14,15 @@ function getDomainFromEnv(env) {
   return d || 'yts.lt'
 }
 
+// Prefer repo-aware fetch from context when available
+const repoFetch = (typeof window !== 'undefined' && window.__ctx__ && window.__ctx__.helpers && window.__ctx__.helpers.fetch)
+  ? window.__ctx__.helpers.fetch
+  : fetch;
+
 async function loadEnvOnce() {
   if (typeof loadEnvOnce._cache !== 'undefined') return loadEnvOnce._cache
   try {
-    const res = await fetch('/hooks/env.json')
+    const res = await repoFetch('/hooks/env.json')
     if (!res.ok) return (loadEnvOnce._cache = {})
     return (loadEnvOnce._cache = await res.json())
   } catch {

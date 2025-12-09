@@ -11,13 +11,17 @@
  */
 
 let genreCache = null;
+// Prefer repo-aware fetch from context when available
+const repoFetch = (typeof window !== 'undefined' && window.__ctx__ && window.__ctx__.helpers && window.__ctx__.helpers.fetch)
+  ? window.__ctx__.helpers.fetch
+  : fetch;
 
 /**
  * Fetch TMDB API credentials from environment
  */
 async function fetchTmdbCredentials() {
     try {
-        const envResp = await fetch('/hooks/env.json');
+        const envResp = await repoFetch('/hooks/env.json');
         if (!envResp.ok) return null;
         const env = await envResp.json();
         return {
