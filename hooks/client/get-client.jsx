@@ -10,6 +10,47 @@ console.log('[get-client] Module loaded')
 let tmdbPlugin = null
 let ytsPlugin = null
 let layoutComponent = null
+let themesRegistered = false
+
+async function registerTemplateThemeStyles(helpers) {
+    if (themesRegistered || !helpers || typeof helpers.registerThemeStyles !== 'function') {
+        return
+    }
+    themesRegistered = true
+    try {
+        const themeModule = await helpers.loadModule('./theme.js')
+        if (!themeModule) {
+            console.warn('[get-client] Theme module returned no exports')
+            return
+        }
+        const { buildClassStyles, THEMES, defaultTheme } = themeModule
+        if (typeof buildClassStyles !== 'function') {
+            console.warn('[get-client] buildClassStyles is not a function on theme module')
+            return
+        }
+        const themeNames = Array.isArray(THEMES)
+            ? THEMES
+            : THEMES && typeof THEMES === 'object'
+                ? Object.keys(THEMES)
+                : []
+        if (!themeNames.length && defaultTheme) {
+            themeNames.push(defaultTheme)
+        }
+        const uniqueThemes = Array.from(new Set(themeNames.filter(Boolean)))
+        for (const themeName of uniqueThemes) {
+            try {
+                const definitions = buildClassStyles(themeName)
+                if (definitions && typeof definitions === 'object') {
+                    helpers.registerThemeStyles(themeName, definitions)
+                }
+            } catch (err) {
+                console.warn(`[get-client] Failed to build class styles for theme ${themeName}:`, err)
+            }
+        }
+    } catch (err) {
+        console.warn('[get-client] Failed to register theme styles:', err)
+    }
+}
 
 /**
  * Load a plugin by name
@@ -32,6 +73,8 @@ export default async function getClient(ctx) {
         console.log('[get-client] After destructure - React:', typeof React, React?.constructor?.name)
         const path = (params?.path || '/').trim()
         console.log('[get-client] path:', path)
+
+        await registerTemplateThemeStyles(helpers)
 
         async function fetchOptions() {
             try {
