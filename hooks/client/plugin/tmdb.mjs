@@ -11,37 +11,21 @@
  */
 
 let genreCache = null;
-// Prefer repo-aware fetch from context when available
-const repoFetch = (typeof window !== 'undefined' && window.__ctx__ && window.__ctx__.helpers && window.__ctx__.helpers.fetch)
-    ? window.__ctx__.helpers.fetch
-    : fetch;
 
 /**
- * Fetch TMDB API credentials from environment
+ * Extract TMDB API credentials from environment
  */
-async function fetchTmdbCredentials() {
-    try {
-        // If the repo-aware validated JSON helper exists, use it to detect HTML fallbacks
-        const ctx = (typeof window !== 'undefined' && window.__ctx__ && window.__ctx__.helpers) ? window.__ctx__.helpers : null;
-        if (ctx && typeof ctx.fetchJson === 'function') {
-            const env = await ctx.fetchJson('/hooks/env.json');
-            return {
-                apiKey: env.RELAY_PUBLIC_TMDB_API_KEY,
-                bearerToken: env.RELAY_PUBLIC_TMDB_READ_ACCESS_ID,
-            };
-        }
-        // Fallback to plain fetch
-        const envResp = await repoFetch('/hooks/env.json');
-        if (!envResp.ok) return null;
-        const env = await envResp.json();
-        return {
-            apiKey: env.RELAY_PUBLIC_TMDB_API_KEY,
-            bearerToken: env.RELAY_PUBLIC_TMDB_READ_ACCESS_ID,
-        };
-    } catch (err) {
-        console.error('[tmdb-plugin] Error fetching credentials:', err);
-        throw err; // bubble up so UI can render diagnostics
+function getTmdbCredentials(env) {
+    if (!env) {
+        return { error: 'No environment provided' };
     }
+    if (env.error) {
+        return { error: env.error };
+    }
+    return {
+        apiKey: env.RELAY_PUBLIC_TMDB_API_KEY,
+        bearerToken: env.RELAY_PUBLIC_TMDB_READ_ACCESS_ID,
+    };
 }
 
 /**
@@ -136,11 +120,8 @@ async function searchTmdb(query, apiKey, bearerToken) {
  * @param {Object} ctx - Plugin context (React, createElement, FileRenderer, Layout)
  * @returns {Object|null} - Rendered JSX or null if path doesn't match
  */
-export async function handleGetRequest(path, ctx) {
+export async function handleGetRequest(path, { navigate, env } = {}) {
     if (!path) return null;
-
-    const { React, createElement: h, FileRenderer, Layout } = ctx;
-    if (!h) return null;
 
     // View route: /view/tmdb/[id]
     const viewMatch = path.match(/^\/view\/tmdb\/(\d+)$/);
@@ -149,35 +130,34 @@ export async function handleGetRequest(path, ctx) {
         console.debug('[tmdb-plugin] GET handler: view route for id:', id);
 
         try {
-            const creds = await fetchTmdbCredentials();
+            const creds = getTmdbCredentials(env);
+            if (creds?.error) {
+                return <div className="p-8 text-red-500">TMDB credentials error: {creds.error}</div>;
+            }
             if (!creds || (!creds.apiKey && !creds.bearerToken)) {
-                return h('div', { className: 'p-8 text-red-500' }, 'TMDB credentials not configured');
+                return <div className="p-8 text-red-500">TMDB credentials not configured</div>;
             }
 
             const movieViewComponent = await import('../components/MovieView.jsx');
             const movie = await fetchTmdbMovie(id, creds.apiKey || '', creds.bearerToken || '');
 
             if (!movie) {
-                return h('div', { className: 'p-8 text-red-500' }, `TMDB unavailable or movie not found: ${id}`);
+                return <div className="p-8 text-red-500">TMDB unavailable or movie not found: {id}</div>;
             }
 
-            const onBack = () => {
-                if (helpers.navigate) helpers.navigate('/');
-            };
+            const onBack = () => navigate && navigate('/');
 
-            const onAddToLibrary = () => {
-                if (helpers.navigate) helpers.navigate(`/create/tmdb/${id}`);
-            };
+            const onAddToLibrary = () => navigate && navigate(`/create/tmdb/${id}`);
 
             const renderView = movieViewComponent?.renderMovieView;
             if (!renderView) {
-                return h('div', { className: 'p-4' }, 'Movie view component missing');
+                return <div className="p-4">Movie view component missing</div>;
             }
 
-            return renderView(h, movie, onBack, onAddToLibrary, helpers.navigate);
+            return renderView(movie, onBack, onAddToLibrary, navigate);
         } catch (err) {
             console.error('[tmdb-plugin] Error loading movie view:', err);
-            return h('div', { className: 'p-8 text-red-500' }, `Error: ${err.message}`);
+            return <div className="p-8 text-red-500">Error: {err.message}</div>;
         }
     }
 
@@ -188,25 +168,26 @@ export async function handleGetRequest(path, ctx) {
         console.debug('[tmdb-plugin] GET handler: create from TMDB for id:', id);
 
         try {
-            const creds = await fetchTmdbCredentials();
+            const creds = getTmdbCredentials(env);
+            if (creds?.error) {
+                return <div className="p-8 text-red-500">TMDB credentials error: {creds.error}</div>;
+            }
             if (!creds || (!creds.apiKey && !creds.bearerToken)) {
-                return h('div', { className: 'p-8 text-red-500' }, 'TMDB credentials not configured');
+                return <div className="p-8 text-red-500">TMDB credentials not configured</div>;
             }
 
             const movie = await fetchTmdbMovie(id, creds.apiKey || '', creds.bearerToken || '');
             if (!movie) {
-                return h('div', { className: 'p-8 text-red-500' }, `Movie not found: ${id}`);
+                return <div className="p-8 text-red-500">Movie not found: {id}</div>;
             }
 
             const createViewComponent = await import('../components/CreateView.jsx');
-            const onBack = () => {
-                if (helpers.navigate) helpers.navigate(`/view/tmdb/${id}`);
-            };
+            const onBack = () => navigate && navigate(`/view/tmdb/${id}`);
 
             const onSubmit = async (formData) => {
                 console.debug('[tmdb-plugin] Create form submitted:', formData);
                 alert(`Movie "${formData.title}" would be saved to library!\n\nData: ${JSON.stringify(formData, null, 2)}`);
-                if (helpers.navigate) helpers.navigate('/');
+                if (navigate) navigate('/');
             };
 
             const renderCreateView = createViewComponent?.renderCreateView;
@@ -214,10 +195,10 @@ export async function handleGetRequest(path, ctx) {
                 return h('div', { className: 'p-4' }, 'Create view component missing');
             }
 
-            return renderCreateView(h, movie, onBack, onSubmit);
+            return renderCreateView(movie, onBack, onSubmit);
         } catch (err) {
             console.error('[tmdb-plugin] Error loading create view:', err);
-            return h('div', { className: 'p-8 text-red-500' }, `Error: ${err.message}`);
+            return <div className="p-8 text-red-500">Error: {err.message}</div>;
         }
     }
 
@@ -234,7 +215,7 @@ export async function handleGetRequest(path, ctx) {
  * @param {Object} ctx - Plugin context
  * @returns {Object|null} - Search results {items, total, page, source} or null if not applicable
  */
-export async function handleQuery(query, options, ctx) {
+export async function handleQuery(query, options, env) {
     if (!query || typeof query !== 'string') return null;
 
     const source = options?.source || 'tmdb';
@@ -243,10 +224,14 @@ export async function handleQuery(query, options, ctx) {
     console.debug('[tmdb-plugin] QUERY handler: searching for:', query);
 
     try {
-        const creds = await fetchTmdbCredentials();
+        const creds = getTmdbCredentials(env);
+        if (creds?.error) {
+            console.warn('[tmdb-plugin] TMDB credentials error:', creds.error);
+            return { error: `TMDB credentials error: ${creds.error}` };
+        }
         if (!creds || (!creds.apiKey && !creds.bearerToken)) {
             console.warn('[tmdb-plugin] TMDB credentials not configured, skipping search');
-            return null;
+            return { error: 'TMDB credentials not configured' };
         }
 
         const results = await searchTmdb(query, creds.apiKey || '', creds.bearerToken || '');
@@ -256,7 +241,7 @@ export async function handleQuery(query, options, ctx) {
         };
     } catch (err) {
         console.error('[tmdb-plugin] Error searching TMDB:', err);
-        return null;
+        return { error: err?.message || String(err) };
     }
 }
 

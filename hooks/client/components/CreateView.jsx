@@ -8,7 +8,6 @@
  */
 
 export function renderCreateView(
-    h,
     prefillData,
     onBack,
     onSubmit,
@@ -31,31 +30,31 @@ export function renderCreateView(
     const movie = prefillData || {}
 
     const FormField = (label, name, value, type = 'text', options = {}) => {
-        const {multiline, readonly, placeholder} = options
+        const { multiline, readonly, placeholder } = options
         return (
             <div className="space-y-1">
                 <label className="block text-sm font-medium" htmlFor={name}
-                       style={{color: themeColors.textSecondary}}>{label}</label>
+                    style={{ color: themeColors.textSecondary }}>{label}</label>
                 {multiline ? (
                     <textarea id={name} name={name} defaultValue={(value || '')} placeholder={placeholder || ''}
-                              readOnly={readonly} rows={4}
-                              className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{
-                        borderColor: themeColors.border,
-                        backgroundColor: readonly ? themeColors.bgTertiary : themeColors.bgSecondary,
-                        color: themeColors.textPrimary,
-                        focusRing: themeColors.primary,
-                        cursor: readonly ? 'not-allowed' : 'auto'
-                    }}/>
+                        readOnly={readonly} rows={4}
+                        className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{
+                            borderColor: themeColors.border,
+                            backgroundColor: readonly ? themeColors.bgTertiary : themeColors.bgSecondary,
+                            color: themeColors.textPrimary,
+                            focusRing: themeColors.primary,
+                            cursor: readonly ? 'not-allowed' : 'auto'
+                        }} />
                 ) : (
                     <input type={type} id={name} name={name} defaultValue={(value || '')}
-                           placeholder={placeholder || ''} readOnly={readonly}
-                           className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{
-                        borderColor: themeColors.border,
-                        backgroundColor: readonly ? themeColors.bgTertiary : themeColors.bgSecondary,
-                        color: themeColors.textPrimary,
-                        focusRing: themeColors.primary,
-                        cursor: readonly ? 'not-allowed' : 'auto'
-                    }}/>
+                        placeholder={placeholder || ''} readOnly={readonly}
+                        className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{
+                            borderColor: themeColors.border,
+                            backgroundColor: readonly ? themeColors.bgTertiary : themeColors.bgSecondary,
+                            color: themeColors.textPrimary,
+                            focusRing: themeColors.primary,
+                            cursor: readonly ? 'not-allowed' : 'auto'
+                        }} />
                 )}
             </div>
         )
@@ -84,18 +83,18 @@ export function renderCreateView(
         <div className="create-movie-form space-y-6 max-w-4xl mx-auto">
             <div className="flex items-center justify-between">
                 <button type="button"
-                        onClick={onBack}
-                        className="px-4 py-2 text-white rounded text-sm font-medium transition"
-                        style={{
-                            backgroundColor: themeColors.buttonSecondary
-                        }}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = themeColors.buttonSecondaryHover}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = themeColors.buttonSecondary}>
+                    onClick={onBack}
+                    className="px-4 py-2 text-white rounded text-sm font-medium transition"
+                    style={{
+                        backgroundColor: themeColors.buttonSecondary
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = themeColors.buttonSecondaryHover}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = themeColors.buttonSecondary}>
                     ← Back
                 </button>
                 <h1 className="text-2xl font-bold"
-                    style={{color: themeColors.textPrimary}}>{movie.id ? 'Add Movie to Library' : 'Create New Movie'}</h1>
-                <div className="w-20"/>
+                    style={{ color: themeColors.textPrimary }}>{movie.id ? 'Add Movie to Library' : 'Create New Movie'}</h1>
+                <div className="w-20" />
             </div>
 
             {movie.id && (
@@ -111,15 +110,15 @@ export function renderCreateView(
                     {posterUrl && (
                         <div className="flex-shrink-0">
                             <img src={posterUrl} alt={movie.title || 'Movie poster'}
-                                 className="w-32 md:w-48 rounded-lg shadow-lg"/>
-                            <input type="hidden" name="poster_path" value={movie.poster_path || ''}/>
-                            <input type="hidden" name="backdrop_path" value={movie.backdrop_path || ''}/>
+                                className="w-32 md:w-48 rounded-lg shadow-lg" />
+                            <input type="hidden" name="poster_path" value={movie.poster_path || ''} />
+                            <input type="hidden" name="backdrop_path" value={movie.backdrop_path || ''} />
                         </div>
                     )}
                     <div className="flex-1 space-y-4">
-                        {FormField('Title', 'title', movie.title, 'text', {placeholder: 'Movie title'})}
+                        {FormField('Title', 'title', movie.title, 'text', { placeholder: 'Movie title' })}
                         {FormField('Original Title', 'original_title', movie.original_title, 'text')}
-                        {FormField('Tagline', 'tagline', movie.tagline, 'text', {placeholder: 'Movie tagline'})}
+                        {FormField('Tagline', 'tagline', movie.tagline, 'text', { placeholder: 'Movie tagline' })}
                         {FormField('Release Date', 'release_date', movie.release_date, 'date')}
                     </div>
                 </div>
@@ -163,26 +162,26 @@ export function renderCreateView(
                         .filter(Boolean)
                         .join(', '),
                     'text',
-                    {placeholder: 'Action, Drama, Sci-Fi'}
+                    { placeholder: 'Action, Drama, Sci-Fi' }
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {FormField('TMDB ID', 'tmdb_id', movie.id, 'text', {readonly: !!movie.id})}
+                    {FormField('TMDB ID', 'tmdb_id', movie.id, 'text', { readonly: !!movie.id })}
                     {FormField('IMDb ID', 'imdb_id', movie.imdb_id, 'text')}
                 </div>
 
-                {FormField('Homepage URL', 'homepage', movie.homepage, 'url', {placeholder: 'https://...'})}
-                {FormField('Production Companies', 'production_companies', (movie.production_companies || []).map((c) => c.name).join(', '), 'text', {placeholder: 'Company 1, Company 2'})}
+                {FormField('Homepage URL', 'homepage', movie.homepage, 'url', { placeholder: 'https://...' })}
+                {FormField('Production Companies', 'production_companies', (movie.production_companies || []).map((c) => c.name).join(', '), 'text', { placeholder: 'Company 1, Company 2' })}
 
-                <input type="hidden" name="source" value={movie.id ? 'tmdb' : 'manual'}/>
+                <input type="hidden" name="source" value={movie.id ? 'tmdb' : 'manual'} />
 
                 <div className="flex gap-4 pt-4 border-t border-[var(--border)]">
                     <button type="submit"
-                            className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors">💾
+                        className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors">💾
                         Save to Library
                     </button>
                     <button type="button" onClick={onBack}
-                            className="px-6 py-3 bg-[var(--bg-secondary)] text-[var(--text)] rounded-lg font-medium transition-colors">Cancel
+                        className="px-6 py-3 bg-[var(--bg-secondary)] text-[var(--text)] rounded-lg font-medium transition-colors">Cancel
                     </button>
                 </div>
             </form>

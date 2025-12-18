@@ -4,7 +4,7 @@
  */
 
 export default async function queryHook(ctx) {
-  const { createElement: h, params, helpers } = ctx
+  const { params, helpers } = ctx
   const qRaw = params?.q
   const page = parseInt(params?.page || '1', 10)
   const source = (params?.source) || 'tmdb'
@@ -41,9 +41,9 @@ export default async function queryHook(ctx) {
       }
     }
     
-    const resultsUI = movieResultsComponent?.renderMovieResults(h, results, source, null, onViewMovie)
+    const resultsUI = movieResultsComponent?.renderMovieResults(results, source, null, onViewMovie)
     const totalPages = Math.ceil(total / pageSize)
-    const paginationUI = movieResultsComponent?.renderPagination(h, page, totalPages, 
+    const paginationUI = movieResultsComponent?.renderPagination(page, totalPages, 
       () => {
         if (helpers.navigate && page > 1) {
           helpers.navigate(`/search/${encodeURIComponent(q)}?page=${page - 1}&pageSize=${pageSize}`)

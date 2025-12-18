@@ -2,8 +2,7 @@
  * query-client.jsx — Repository-owned UI for search/query routes with pagination and source filters
  */
 
-export default async function queryHook(ctx) {
-  const { createElement: h, params, navigate } = ctx
+export default async function queryHook({ params, navigate, env } = {}) {
   const qRaw = params?.q
   const page = parseInt(params?.page || '1', 10)
   const pageSize = parseInt(params?.pageSize || '20', 10)
@@ -37,27 +36,37 @@ export default async function queryHook(ctx) {
 
     async function runTmdb() {
       const mod = await import('./plugin/tmdb.mjs')
-      const out = await mod.handleQuery(text || q, { source: 'tmdb', page, pageSize }, ctx)
+      const out = await mod.handleQuery(text || q, { source: 'tmdb', page, pageSize }, env)
       return out || { items: [], total: 0 }
     }
     async function runYts() {
       const mod = await import('./plugin/yts.mjs')
-      const out = await mod.handleQuery(q, { source: 'yts', page, pageSize }, ctx)
+      const out = await mod.handleQuery(q, { source: 'yts', page, pageSize }, env)
       return out || { items: [], total: 0 }
     }
 
     if (requestedSource === 'yts') {
       const out = await runYts()
+      if (out?.error) {
+        return <div className="p-4 text-red-500">YTS error: {out.error}</div>
+      }
       results = out.items || []
       total = out.total || results.length
       sourceUsed = 'yts'
     } else if (requestedSource === 'tmdb') {
       const out = await runTmdb()
+      if (out?.error) {
+        return <div className="p-4 text-red-500">TMDB error: {out.error}</div>
+      }
       results = out.items || out.results || []
       total = out.total || (out.items ? out.items.length : 0)
       sourceUsed = 'tmdb'
     } else if (requestedSource === 'all') {
       const [tm, yt] = await Promise.all([runTmdb(), runYts()])
+      const errors = [tm?.error, yt?.error].filter(Boolean)
+      if (errors.length === 2) {
+        return <div className="p-4 text-red-500">Errors: {errors.join(' | ')}</div>
+      }
       results = [...(tm.items || tm.results || []), ...(yt.items || [])]
       total = (tm.total || 0) + (yt.total || 0)
       sourceUsed = 'all'
@@ -79,7 +88,7 @@ export default async function queryHook(ctx) {
       }
     }
 
-    const resultsUI = movieResultsComponent?.renderMovieResults(h, results, sourceUsed, null, onViewMovie)
+    const resultsUI = movieResultsComponent?.renderMovieResults(results, sourceUsed, null, onViewMovie)
     return (
       <div className="p-4">
         <div className="text-sm text-gray-500 mb-3">{total} results for "{q}"</div>

@@ -8,7 +8,6 @@
  */
 
 export function renderMovieView(
-  h,
   movie,
   onBack,
   onAddToLibrary,

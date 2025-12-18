@@ -7,7 +7,7 @@
  * Exported as: renderMovieResults function
  */
 
-export function renderMovieResults(h, results, source = 'tmdb', onPageChange = null, onViewMovie = null, theme = null) {
+export function renderMovieResults(results, source = 'tmdb', onPageChange = null, onViewMovie = null, theme = null) {
   // Use provided theme or fallback to default dark theme colors
   const defaultDarkTheme = {
     colors: {
@@ -37,7 +37,7 @@ export function renderMovieResults(h, results, source = 'tmdb', onPageChange = n
         const img = item.poster_path ? `https://image.tmdb.org/t/p/w154${item.poster_path}` : null
         const genres = item.genre_names && Array.isArray(item.genre_names) ? item.genre_names.slice(0, 3).join(', ') : null
         const overview = item.overview || 'No description available.'
-        
+
         return (
           <div key={String(id)} className="p-3 rounded border transition flex gap-3" style={{ borderColor: themeColors.border, backgroundColor: themeColors.bgSecondary }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = themeColors.bgTertiary} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = themeColors.bgSecondary}>
             {img && (
@@ -56,7 +56,7 @@ export function renderMovieResults(h, results, source = 'tmdb', onPageChange = n
                 {genres && <div className="text-xs text-gray-400 mt-1">{genres}</div>}
                 <div className="text-xs text-gray-400 mt-2 line-clamp-2">{overview}</div>
               </div>
-              <button 
+              <button
                 onClick={() => onViewMovie && onViewMovie(id, source)}
                 className="mt-2 px-3 py-1 text-white text-xs rounded transition w-fit"
                 style={{ backgroundColor: themeColors.primary }}
@@ -73,7 +73,7 @@ export function renderMovieResults(h, results, source = 'tmdb', onPageChange = n
   )
 }
 
-export function renderPagination(h, currentPage, totalPages, onPrevious, onNext, onPageChange, theme = null) {
+export function renderPagination(currentPage, totalPages, onPrevious, onNext, onPageChange, theme = null) {
   // Use provided theme or fallback to default dark theme colors
   const defaultDarkTheme = {
     colors: {
@@ -102,7 +102,7 @@ export function renderPagination(h, currentPage, totalPages, onPrevious, onNext,
       >
         ← Previous
       </button>
-      
+
       <div className="flex items-center gap-1">
         {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
           const pageNum = currentPage > 3 ? currentPage - 2 + i : i + 1
@@ -113,7 +113,7 @@ export function renderPagination(h, currentPage, totalPages, onPrevious, onNext,
               key={pageNum}
               onClick={() => pageNum !== currentPage && onPageChange && onPageChange(pageNum)}
               className="px-2 py-1 text-xs rounded transition"
-              style={{ 
+              style={{
                 backgroundColor: isCurrentPage ? themeColors.primary : themeColors.buttonSecondary,
                 color: isCurrentPage ? themeColors.textPrimary : themeColors.textMuted
               }}
@@ -125,7 +125,7 @@ export function renderPagination(h, currentPage, totalPages, onPrevious, onNext,
           )
         })}
       </div>
-      
+
       <button
         onClick={onNext}
         disabled={currentPage >= totalPages}
@@ -136,7 +136,7 @@ export function renderPagination(h, currentPage, totalPages, onPrevious, onNext,
       >
         Next →
       </button>
-      
+
       <span className="ml-2 text-xs text-gray-400">
         Page {currentPage} of {totalPages}
       </span>

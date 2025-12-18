@@ -14,26 +14,6 @@ function getDomainFromEnv(env) {
   return d || 'yts.lt'
 }
 
-// Prefer repo-aware fetch from context when available
-const repoFetch = (typeof window !== 'undefined' && window.__ctx__ && window.__ctx__.helpers && window.__ctx__.helpers.fetch)
-  ? window.__ctx__.helpers.fetch
-  : fetch;
-
-async function loadEnvOnce() {
-  if (typeof loadEnvOnce._cache !== 'undefined') return loadEnvOnce._cache
-  try {
-    const ctx = (typeof window !== 'undefined' && window.__ctx__ && window.__ctx__.helpers) ? window.__ctx__.helpers : null
-    if (ctx && typeof ctx.fetchJson === 'function') {
-      return (loadEnvOnce._cache = await ctx.fetchJson('/hooks/env.json'))
-    }
-    const res = await repoFetch('/hooks/env.json')
-    if (!res.ok) return (loadEnvOnce._cache = {})
-    return (loadEnvOnce._cache = await res.json())
-  } catch (e) {
-    return (loadEnvOnce._cache = {})
-  }
-}
-
 function buildYtsBrowseUrl(domain, title) {
   const t = encodeURIComponent(String(title || '').trim())
   return `https://${domain}/browse-movies/${t}/all/all/0/latest/0/all`
@@ -139,10 +119,10 @@ function extractTorrents(html, domain) {
   return results
 }
 
-async function queryYtsForTorrents(title) {
+async function queryYtsForTorrents(title, env) {
   const t = String(title || '').trim()
   if (!t) return { domain: null, browseUrl: null, movieUrl: null, torrents: [] }
-  const env = await loadEnvOnce()
+  if (env && env.error) return { domain: null, browseUrl: null, movieUrl: null, torrents: [], error: env.error }
   const domain = getDomainFromEnv(env)
   const browseUrl = buildYtsBrowseUrl(domain, t)
   try {
@@ -192,7 +172,7 @@ function mapYtsItemsToInternal(title, yts) {
   return { items, total: items.length, page: 1 }
 }
 
-export async function handleQuery(query, options, ctx) {
+export async function handleQuery(query, options, env) {
   if (!query || typeof query !== 'string') return null
   const { text, filters } = parseQueryFilters(query)
   if (filters.source && String(filters.source).toLowerCase() !== 'yts') {
@@ -200,16 +180,16 @@ export async function handleQuery(query, options, ctx) {
     return null
   }
   const title = text || query
-  const yts = await queryYtsForTorrents(title)
+  const yts = await queryYtsForTorrents(title, env)
   return mapYtsItemsToInternal(title, yts)
 }
 
-export async function handleGetRequest(path, { createElement: h, helpers }) {
+export async function handleGetRequest(path, { navigate, env } = {}) {
   // /view/yts/{title}
   const m = path.match(/^\/view\/yts\/(.+)$/)
   if (!m) return null
   const title = decodeURIComponent(m[1])
-  const yts = await queryYtsForTorrents(title)
+  const yts = await queryYtsForTorrents(title, env)
   const mapped = mapYtsItemsToInternal(title, yts)
 
   // Try to reuse MovieView renderer if available
@@ -227,11 +207,10 @@ export async function handleGetRequest(path, { createElement: h, helpers }) {
 
   if (movieView) {
     return movieView(
-      h,
       movie,
-      () => helpers.navigate && helpers.navigate('/'),
+      () => navigate && navigate('/'),
       null,
-      helpers.navigate
+      navigate
     )
   }
 
