@@ -1,30 +1,23 @@
-/** @jsx h */
 /**
  * Repo UI Layout component (JSX)
  * - Path input + Go button
  * - Branch dropdown selector
  * - Search form to /search/[query]
- *
- * IMPORTANT: This module is transpiled in the browser via @babel/standalone.
- * There is no "react" module available to import at runtime. JSX compiles to the provided `h`.
- *
- * Loaded via: helpers.loadModule('./lib/components/Layout.jsx')
  */
 
 export default function Layout(props) {
-  const { h, params = {}, helpers = {}, options = {}, children } = props || {}
+  const { path = '/', onNavigate = () => { }, options = {}, children = null } = props || {}
   const branches = (options && options.branches) || ['main']
-  const currentBranch = (params && params.branch) || (options && options.repository && options.repository.currentBranch) || branches[0] || 'main'
-  const path = (params && params.path) || '/'
+  const currentBranch = (options && options.repository && options.repository.currentBranch) || branches[0] || 'main'
 
   function onSubmitPath(ev) {
     ev.preventDefault()
     const form = ev.currentTarget
     const input = form.elements.namedItem('path')
     const value = String((input && input.value) || '')
-    if (!helpers || !helpers.navigate) return
+    if (!onNavigate) return
     const normalized = value.startsWith('/') ? value : `/${value}`
-    helpers.navigate(normalized)
+    onNavigate(normalized)
   }
 
   function onSubmitSearch(ev) {
@@ -32,15 +25,15 @@ export default function Layout(props) {
     const form = ev.currentTarget
     const input = form.elements.namedItem('q')
     const q = String((input && input.value) || '')
-    if (!q.trim() || !helpers || !helpers.navigate) return
+    if (!q.trim() || !onNavigate) return
     // Reset to page 1 when starting a new search
-    helpers.navigate(`/search/${encodeURIComponent(q.trim())}?page=1`)
+    onNavigate(`/search/${encodeURIComponent(q.trim())}?page=1`)
   }
 
   function onChangeBranch(ev) {
     const next = (ev && ev.target && ev.target.value) || 'main'
-    if (helpers && helpers.setBranch) helpers.setBranch(next)
-    if (helpers && helpers.navigate) helpers.navigate(path || '/')
+    // Note: branch selection would require additional context; for now it's informational
+    onNavigate(path || '/')
   }
 
   return (
@@ -64,10 +57,10 @@ export default function Layout(props) {
           <form className="flex items-center gap-2 ml-auto" onSubmit={onSubmitSearch}>
             <input type="search" name="q" placeholder="Search…" className="px-2 py-1 border border-gray-300 rounded text-sm" />
             <button type="submit" className="px-3 py-1 bg-gray-700 hover:bg-gray-800 text-white rounded text-sm">Search</button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => {
-                if (helpers && helpers.navigate) helpers.navigate('/')
+                onNavigate('/')
               }}
               className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm"
             >

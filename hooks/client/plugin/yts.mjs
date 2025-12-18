@@ -57,7 +57,7 @@ function extractMoviePageUrl(html, domain) {
       if (href.startsWith('//')) return 'https:' + href
       if (href.startsWith('/')) return `https://${domain}${href}`
     }
-  } catch {}
+  } catch { }
   const d = domain.replace(/\./g, '\\.')
   const reHref = new RegExp(`<a[^>]+href=["'](https?:\/\/[^"']*\/movies\/[^"']+|\/\/[^"']*\/movies\/[^"']+|\/movies\/[^"']+)["'][^>]*>`, 'i')
   const mHref = html.match(reHref)
@@ -134,7 +134,7 @@ function extractTorrents(html, domain) {
       const quality = (name.match(/\b(2160p|1080p|720p|480p)\b/i) || [])[0] || ''
       const desc = [name, quality.toUpperCase()].filter(Boolean).join(' ').trim()
       results.push({ hash, description: desc || 'Magnet', href_download: null, href_magnet: href, source: 'yts' })
-    } catch {}
+    } catch { }
   }
   return results
 }
@@ -215,9 +215,9 @@ export async function handleGetRequest(path, { createElement: h, helpers }) {
   // Try to reuse MovieView renderer if available
   let movieView = null
   try {
-    const comp = await helpers.loadModule('./components/MovieView.jsx')
+    const comp = await import('../components/MovieView.jsx')
     movieView = comp && comp.renderMovieView
-  } catch {}
+  } catch { }
 
   const movie = {
     title,

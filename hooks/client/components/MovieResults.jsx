@@ -1,4 +1,4 @@
-/** @jsx h */
+
 /**
  * MovieResults component - Display search results as a list of movies with pagination
  * Shows poster, title, year, rating, genres, and description

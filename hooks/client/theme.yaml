@@ -1,0 +1,14 @@
+themes:
+  light:
+    variables:
+      color:
+        bg-primary: "#ffffff"
+        surface: "#f5f6fb"
+        text: "#111b26"
+        muted: "#5f6b7a"
+        primary: "#1f73ff"
+        info: "#0ea5e9"
+        warning: "#f59e0b"
+        danger: "#ef4444"
+        link: "#1f73ff"
+        border: "#d9dee7"

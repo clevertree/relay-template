@@ -13,8 +13,8 @@
 let genreCache = null;
 // Prefer repo-aware fetch from context when available
 const repoFetch = (typeof window !== 'undefined' && window.__ctx__ && window.__ctx__.helpers && window.__ctx__.helpers.fetch)
-  ? window.__ctx__.helpers.fetch
-  : fetch;
+    ? window.__ctx__.helpers.fetch
+    : fetch;
 
 /**
  * Fetch TMDB API credentials from environment
@@ -51,7 +51,7 @@ async function fetchGenres(apiKey, bearerToken) {
     if (genreCache) return genreCache;
 
     try {
-        const params = new URLSearchParams({language: 'en-US'});
+        const params = new URLSearchParams({ language: 'en-US' });
         if (apiKey) params.set('api_key', apiKey);
 
         const url = `https://api.themoviedb.org/3/genre/movie/list?${params.toString()}`;
@@ -60,7 +60,7 @@ async function fetchGenres(apiKey, bearerToken) {
             headers['Authorization'] = bearerToken.startsWith('Bearer ') ? bearerToken : `Bearer ${bearerToken}`;
         }
 
-        const resp = await fetch(url, {headers});
+        const resp = await fetch(url, { headers });
         if (!resp.ok) return {};
 
         const data = await resp.json();
@@ -79,7 +79,7 @@ async function fetchGenres(apiKey, bearerToken) {
  * Fetch a single movie by ID from TMDB
  */
 async function fetchTmdbMovie(id, apiKey, bearerToken) {
-    const params = new URLSearchParams({language: 'en-US'});
+    const params = new URLSearchParams({ language: 'en-US' });
     if (apiKey) params.set('api_key', apiKey);
 
     const url = `https://api.themoviedb.org/3/movie/${id}?${params.toString()}`;
@@ -88,7 +88,7 @@ async function fetchTmdbMovie(id, apiKey, bearerToken) {
         headers['Authorization'] = bearerToken.startsWith('Bearer ') ? bearerToken : `Bearer ${bearerToken}`;
     }
 
-    const resp = await fetch(url, {headers});
+    const resp = await fetch(url, { headers });
     if (!resp.ok) return null;
     return resp.json();
 }
@@ -111,8 +111,8 @@ async function searchTmdb(query, apiKey, bearerToken) {
         headers['Authorization'] = bearerToken.startsWith('Bearer ') ? bearerToken : `Bearer ${bearerToken}`;
     }
 
-    const resp = await fetch(url, {headers});
-    if (!resp.ok) return {items: [], total: 0, page: 1};
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) return { items: [], total: 0, page: 1 };
 
     const data = await resp.json();
     const genreMap = await fetchGenres(apiKey, bearerToken);
@@ -125,7 +125,7 @@ async function searchTmdb(query, apiKey, bearerToken) {
         genre_names: (item.genre_ids || []).map((genreId) => genreMap[genreId]).filter(Boolean),
     }));
 
-    return {items, total: data.total_results || 0, page: data.page || 1};
+    return { items, total: data.total_results || 0, page: data.page || 1 };
 }
 
 /**
@@ -133,13 +133,13 @@ async function searchTmdb(query, apiKey, bearerToken) {
  * Handles GET requests that match TMDB patterns
  *
  * @param {string} path - The request path
- * @param {Object} ctx - Plugin context (React, helpers, etc.)
+ * @param {Object} ctx - Plugin context (React, createElement, FileRenderer, Layout)
  * @returns {Object|null} - Rendered JSX or null if path doesn't match
  */
 export async function handleGetRequest(path, ctx) {
     if (!path) return null;
 
-    const {React, createElement: h, helpers} = ctx;
+    const { React, createElement: h, FileRenderer, Layout } = ctx;
     if (!h) return null;
 
     // View route: /view/tmdb/[id]
@@ -151,14 +151,14 @@ export async function handleGetRequest(path, ctx) {
         try {
             const creds = await fetchTmdbCredentials();
             if (!creds || (!creds.apiKey && !creds.bearerToken)) {
-                return h('div', {className: 'p-8 text-red-500'}, 'TMDB credentials not configured');
+                return h('div', { className: 'p-8 text-red-500' }, 'TMDB credentials not configured');
             }
 
-            const movieViewComponent = await helpers.loadModule('./components/MovieView.jsx');
+            const movieViewComponent = await import('../components/MovieView.jsx');
             const movie = await fetchTmdbMovie(id, creds.apiKey || '', creds.bearerToken || '');
 
             if (!movie) {
-                return h('div', {className: 'p-8 text-red-500'}, `TMDB unavailable or movie not found: ${id}`);
+                return h('div', { className: 'p-8 text-red-500' }, `TMDB unavailable or movie not found: ${id}`);
             }
 
             const onBack = () => {
@@ -171,13 +171,13 @@ export async function handleGetRequest(path, ctx) {
 
             const renderView = movieViewComponent?.renderMovieView;
             if (!renderView) {
-                return h('div', {className: 'p-4'}, 'Movie view component missing');
+                return h('div', { className: 'p-4' }, 'Movie view component missing');
             }
 
             return renderView(h, movie, onBack, onAddToLibrary, helpers.navigate);
         } catch (err) {
             console.error('[tmdb-plugin] Error loading movie view:', err);
-            return h('div', {className: 'p-8 text-red-500'}, `Error: ${err.message}`);
+            return h('div', { className: 'p-8 text-red-500' }, `Error: ${err.message}`);
         }
     }
 
@@ -190,15 +190,15 @@ export async function handleGetRequest(path, ctx) {
         try {
             const creds = await fetchTmdbCredentials();
             if (!creds || (!creds.apiKey && !creds.bearerToken)) {
-                return h('div', {className: 'p-8 text-red-500'}, 'TMDB credentials not configured');
+                return h('div', { className: 'p-8 text-red-500' }, 'TMDB credentials not configured');
             }
 
             const movie = await fetchTmdbMovie(id, creds.apiKey || '', creds.bearerToken || '');
             if (!movie) {
-                return h('div', {className: 'p-8 text-red-500'}, `Movie not found: ${id}`);
+                return h('div', { className: 'p-8 text-red-500' }, `Movie not found: ${id}`);
             }
 
-            const createViewComponent = await helpers.loadModule('./components/CreateView.jsx');
+            const createViewComponent = await import('../components/CreateView.jsx');
             const onBack = () => {
                 if (helpers.navigate) helpers.navigate(`/view/tmdb/${id}`);
             };
@@ -211,13 +211,13 @@ export async function handleGetRequest(path, ctx) {
 
             const renderCreateView = createViewComponent?.renderCreateView;
             if (!renderCreateView) {
-                return h('div', {className: 'p-4'}, 'Create view component missing');
+                return h('div', { className: 'p-4' }, 'Create view component missing');
             }
 
             return renderCreateView(h, movie, onBack, onSubmit);
         } catch (err) {
             console.error('[tmdb-plugin] Error loading create view:', err);
-            return h('div', {className: 'p-8 text-red-500'}, `Error: ${err.message}`);
+            return h('div', { className: 'p-8 text-red-500' }, `Error: ${err.message}`);
         }
     }
 

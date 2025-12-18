@@ -3,7 +3,7 @@
  */
 
 export default async function queryHook(ctx) {
-  const { createElement: h, params, helpers } = ctx
+  const { createElement: h, params, navigate } = ctx
   const qRaw = params?.q
   const page = parseInt(params?.page || '1', 10)
   const pageSize = parseInt(params?.pageSize || '20', 10)
@@ -29,19 +29,19 @@ export default async function queryHook(ctx) {
     const requestedSource = (filters.source || params?.source || 'tmdb').toLowerCase()
 
     // Load components
-    const movieResultsComponent = await helpers.loadModule('./components/MovieResults.jsx')
+    const movieResultsComponent = await import('./components/MovieResults.jsx')
 
     let results = []
     let total = 0
     let sourceUsed = requestedSource
 
     async function runTmdb() {
-      const mod = await helpers.loadModule('./plugin/tmdb.mjs')
+      const mod = await import('./plugin/tmdb.mjs')
       const out = await mod.handleQuery(text || q, { source: 'tmdb', page, pageSize }, ctx)
       return out || { items: [], total: 0 }
     }
     async function runYts() {
-      const mod = await helpers.loadModule('./plugin/yts.mjs')
+      const mod = await import('./plugin/yts.mjs')
       const out = await mod.handleQuery(q, { source: 'yts', page, pageSize }, ctx)
       return out || { items: [], total: 0 }
     }
@@ -58,7 +58,7 @@ export default async function queryHook(ctx) {
       sourceUsed = 'tmdb'
     } else if (requestedSource === 'all') {
       const [tm, yt] = await Promise.all([runTmdb(), runYts()])
-      results = [ ...(tm.items || tm.results || []), ...(yt.items || []) ]
+      results = [...(tm.items || tm.results || []), ...(yt.items || [])]
       total = (tm.total || 0) + (yt.total || 0)
       sourceUsed = 'all'
     } else {
@@ -70,13 +70,12 @@ export default async function queryHook(ctx) {
     }
 
     const onViewMovie = (id, viewSource) => {
-      if (helpers.navigate) {
-        const src = viewSource || sourceUsed
-        if (src === 'yts') {
-          helpers.navigate(`/view/yts/${encodeURIComponent(id || (text || q))}`)
-        } else if (src === 'tmdb') {
-          helpers.navigate(`/view/tmdb/${id}`)
-        }
+      if (!navigate) return
+      const src = viewSource || sourceUsed
+      if (src === 'yts') {
+        navigate(`/view/yts/${encodeURIComponent(id || (text || q))}`)
+      } else if (src === 'tmdb') {
+        navigate(`/view/tmdb/${id}`)
       }
     }
 
