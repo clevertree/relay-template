@@ -5,9 +5,9 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { MarkdownRenderer } from '@relay/markdown'
-import { registerThemesFromYaml } from '@relay/theme'
-import { url } from '@relay/meta'
+import { MarkdownRenderer } from '@clevertree/markdown'
+import { registerThemesFromYaml } from '@clevertree/theme'
+import { url } from '@clevertree/meta'
 
 console.log('[get-client] Module loaded')
 
@@ -64,7 +64,7 @@ async function registerTemplateThemeStyles() {
             await registerThemesFromYaml('./theme.yaml')
             return
         }
-        console.warn('[get-client] registerThemesFromYaml not available from @relay/theme, skipping theme registration')
+        console.warn('[get-client] registerThemesFromYaml not available from @clevertree/theme, skipping theme registration')
     } catch (err) {
         console.warn('[get-client] Failed to register theme YAML:', err)
     }

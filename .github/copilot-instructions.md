@@ -33,7 +33,7 @@ export default async function getClient(ctx) {
 
 **Key Patterns:**
 1. Lazy-load query handler: `await import('./query-client.jsx')`
-2. Inject metadata: `dirname`, `url` from `@relay/meta`
+2. Inject metadata: `dirname`, `url` from `@clevertree/meta`
 3. Route to plugins based on user navigation
 
 ### Query Client: query-client.jsx
@@ -99,7 +99,7 @@ Located adjacent to hook module:
 
 ### Loading in Plugins
 ```javascript
-import { dirname } from '@relay/meta'
+import { dirname } from '@clevertree/meta'
 
 const envUrl = new URL('./env.json', dirname)
 const resp = await fetch(envUrl)
@@ -177,7 +177,7 @@ const url = "http://localhost:5173/hooks/client/get-client.jsx"
 
 Access via:
 ```javascript
-import { filename, dirname, url } from '@relay/meta'
+import { filename, dirname, url } from '@clevertree/meta'
 ```
 
 ## Import Rewriting
