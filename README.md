@@ -120,7 +120,7 @@ Defines whitelist, validation schemas, and business rules.
 
 ## Styling System
 
-The template uses **Tailwind CSS** with **NativeWind** for cross-platform styling (Web + React Native).
+The template uses **Tailwind CSS** with **NativeWind** for cross-platform styling (Web + Android/iOS Native).
 
 ### Color Variables
 

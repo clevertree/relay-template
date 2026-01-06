@@ -35,9 +35,9 @@ The player should show a small status line above the video element:
   - IPFS: resolve via a public gateway (e.g., `https://ipfs.io/ipfs/{cid}`) until a native client is integrated.
 - Auto-play when ready; allow standard HTML5 controls.
 
-#### React Native Approach
+#### Android/iOS Native Approach
 - Embed native clients for torrent/IPFS to avoid relying on external gateways:
-  - Torrent: integrate a native module (e.g., `react-native-torrent-streamer` or custom native bridge) to fetch the torrent pieces and serve a local `file://` or `http://127.0.0.1:<port>` URL to the native `<Video>` component.
+  - Torrent: integrate a native module (e.g., `android-ios-native-torrent-streamer` or custom native bridge) to fetch the torrent pieces and serve a local `file://` or `http://127.0.0.1:<port>` URL to the native `<Video>` component.
   - IPFS: embed an IPFS client (e.g., using `js-ipfs` with native bridges or a lightweight Go-IPFS mobile build) and expose a local streaming endpoint.
 - Provide the same component API (`src`, `subtitles`, etc.) so markdown-driven content remains portable.
 

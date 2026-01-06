@@ -129,12 +129,24 @@ Displays grid of movie cards.
 ### Other Components
 Reusable UI elements - follow React patterns.
 
+## JSX Tag Standards
+- Use `<span>` for text elements (mapped to `TextView` on Android).
+- **NEVER** use `<text>` as it is not a standard HTML tag and causes issues on Web.
+- Use `<div>` or `<view>` for containers (mapped to `LinearLayout` on Android).
+
 ## Development Workflow
 
-### Testing Hooks
+### Testing Hooks (Web)
 1. Start relay-clients web server: `npm run dev`
 2. Hooks loaded from this template
 3. Changes reflect on refresh (or use watch mode)
+
+### Testing Hooks (Android Live Reload)
+To iterate quickly on Android without rebuilding the APK:
+1. **Setup ADB Reverse**: `adb reverse tcp:8081 tcp:8081` (CRITICAL)
+2. **Start Dev Server**: Run `node scripts/dev-server.js` in the `relay-client-android` repo.
+3. **Connect App**: Ensure the Android app is running in debug mode. It will log "Dev server detected! Enabling live reload."
+4. **Iterate**: Any changes to `.jsx` files in the assets directory will trigger an instant reload in the app.
 
 ### Adding New Plugin
 1. Create `hooks/client/plugin/myplugin.mjs`

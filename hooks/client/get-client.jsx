@@ -19,15 +19,32 @@ console.log('[get-client] Template root:', templateRoot)
 // Wrapper to resolve fetch URLs relative to template root
 // Forces relative resolution even for paths starting with / (use fetch() directly if you want host-relative)
 function fetchRelative(input, init) {
+    if (globalThis.__DEBUG_HOOKS__) {
+        console.log('[DEBUG] fetchRelative called with:', input);
+    }
     if (typeof input === 'string') {
-        // If it's a full URL (http/https), use as-is
-        if (input.startsWith('http://') || input.startsWith('https://')) {
-            return fetch(input, init)
+        const urlObj = input.startsWith('http') ? new URL(input) : new URL(input.startsWith('/') ? input.slice(1) : input, templateRoot)
+        
+        // Add cache busting in debug mode
+        if (globalThis.__DEBUG_HOOKS__) {
+            urlObj.searchParams.set('_t', Date.now().toString());
         }
-        // Strip leading slash to force template-relative resolution
-        const relativePath = input.startsWith('/') ? input.slice(1) : input
-        const resolvedUrl = new URL(relativePath, templateRoot).href
-        return fetch(resolvedUrl, init)
+        
+        const resolvedUrl = urlObj.href
+        
+        if (globalThis.__DEBUG_HOOKS__) {
+            console.log(`[get-client] FETCH START: ${resolvedUrl}`)
+        }
+        
+        return fetch(resolvedUrl, init).then(resp => {
+            if (globalThis.__DEBUG_HOOKS__) {
+                console.log(`[get-client] FETCH COMPLETE: ${resolvedUrl} (Status: ${resp.status}, OK: ${resp.ok})`)
+            }
+            return resp
+        }).catch(err => {
+            console.error(`[get-client] FETCH FAILED: ${resolvedUrl}`, err)
+            throw err
+        })
     }
     return fetch(input, init)
 }
@@ -177,10 +194,12 @@ function GetClientComponent() {
 
                 function wrap(element, options) {
                     console.log('[wrap] Called with element:', element?.constructor?.name, 'options:', Object.keys(options || {}))
-                    const LayoutComp = (layoutComponent?.default || null)
-                    console.log('[wrap] LayoutComp:', LayoutComp?.name)
-                    if (!LayoutComp) {
-                        throw new Error('Missing layout component: hooks/client/components/Layout.jsx')
+                    // Handle both ESM (.default) and CJS (direct) exports
+                    const LayoutComp = layoutComponent?.default || layoutComponent
+                    console.log('[wrap] LayoutComp resolved:', LayoutComp?.name || typeof LayoutComp)
+                    
+                    if (!LayoutComp || typeof LayoutComp !== 'function') {
+                        throw new Error('Missing or invalid layout component: hooks/client/components/Layout.jsx')
                     }
                     console.log('[wrap] Creating LayoutComp with props')
                     // Pass internal path state and navigate; LayoutComp is fully decoupled from host
@@ -276,43 +295,82 @@ function GetClientComponent() {
     // Render based on state
     if (error) {
         return (
-            <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-                <div style={{
-                    backgroundColor: '#fee',
-                    border: '1px solid #c33',
-                    borderRadius: '8px',
-                    padding: '1.5rem'
+            <div style={{ 
+                padding: '2rem', 
+                maxWidth: '800px', 
+                margin: '2rem auto',
+                backgroundColor: '#fff5f5',
+                border: '1px solid #feb2b2',
+                borderRadius: '12px',
+                shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+                    <span style={{ fontSize: '2rem', marginRight: '1rem' }}>⚠️</span>
+                    <h2 style={{ color: '#c53030', margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>
+                        Hook Execution Error
+                    </h2>
+                </div>
+                
+                <div style={{ 
+                    backgroundColor: '#fff', 
+                    padding: '1rem', 
+                    borderRadius: '8px', 
+                    border: '1px solid #fed7d7',
+                    marginBottom: '1rem'
                 }}>
-                    <h2 style={{ color: '#c33', marginTop: 0, marginBottom: '1rem' }}>Error</h2>
-                    <pre style={{
-                        whiteSpace: 'pre',
-                        fontFamily: 'monospace',
+                    <div style={{ fontWeight: 'bold', color: '#742a2a', marginBottom: '0.5rem' }}>Message:</div>
+                    <pre style={{ 
+                        margin: 0, 
+                        whiteSpace: 'pre-wrap', 
+                        fontFamily: 'ui-monospace, monospace',
+                        color: '#2d3748',
                         fontSize: '14px',
-                        backgroundColor: '#fff',
-                        padding: '1rem',
-                        borderRadius: '4px',
-                        overflowX: 'auto',
-                        margin: 0
+                        lineHeight: '1.5'
                     }}>
                         {error instanceof Error ? error.message : String(error)}
                     </pre>
-                    {error instanceof Error && error.stack && (
-                        <details style={{ marginTop: '1rem' }}>
-                            <summary style={{ cursor: 'pointer', color: '#666' }}>Stack trace</summary>
-                            <pre style={{
-                                whiteSpace: 'pre',
-                                fontFamily: 'monospace',
-                                fontSize: '12px',
-                                backgroundColor: '#f5f5f5',
-                                padding: '1rem',
-                                borderRadius: '4px',
-                                overflowX: 'auto',
-                                marginTop: '0.5rem'
-                            }}>
-                                {error.stack}
-                            </pre>
-                        </details>
-                    )}
+                </div>
+
+                {error instanceof Error && error.stack && (
+                    <details style={{ cursor: 'pointer' }}>
+                        <summary style={{ 
+                            color: '#718096', 
+                            fontSize: '0.875rem', 
+                            padding: '0.5rem 0',
+                            userSelect: 'none'
+                        }}>
+                            View technical details (Stack Trace)
+                        </summary>
+                        <pre style={{ 
+                            marginTop: '0.5rem',
+                            padding: '1rem',
+                            backgroundColor: '#1a202c',
+                            color: '#e2e8f0',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            overflowX: 'auto',
+                            lineHeight: '1.4'
+                        }}>
+                            {error.stack}
+                        </pre>
+                    </details>
+                )}
+                
+                <div style={{ marginTop: '1.5rem', borderTop: '1px solid #fed7d7', paddingTop: '1rem' }}>
+                    <button 
+                        onClick={() => window.location?.reload?.() || navigate('/')}
+                        style={{
+                            backgroundColor: '#c53030',
+                            color: 'white',
+                            border: 'none',
+                            padding: '0.625rem 1.25rem',
+                            borderRadius: '6px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Try Again
+                    </button>
                 </div>
             </div>
         )

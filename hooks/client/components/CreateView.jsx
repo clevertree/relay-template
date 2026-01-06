@@ -35,7 +35,7 @@ export function renderCreateView(
                 <label className="block text-sm font-medium" htmlFor={name}
                     style={{ color: themeColors.textSecondary }}>{label}</label>
                 {multiline ? (
-                    <textarea id={name} name={name} defaultValue={(value || '')} placeholder={placeholder || ''}
+                    <spanarea id={name} name={name} defaultValue={(value || '')} placeholder={placeholder || ''}
                         readOnly={readonly} rows={4}
                         className="w-full px-3 py-2 rounded-md shadow-sm focus:ring-2 transition" style={{
                             borderColor: themeColors.border,

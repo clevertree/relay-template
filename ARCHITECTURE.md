@@ -137,7 +137,7 @@ This loads `theme.yaml` via the shared bridge and registers styles with the them
 
 - **Decoupling**: Repos are independent micro-frontends; can be embedded anywhere.
 - **Testability**: No global state or browser APIs; easier to test in isolation.
-- **Portability**: Same hook code works on web, React Native, Node.js SSR without modification.
+- **Portability**: Same hook code works on web, Android/iOS Native, Node.js SSR without modification.
 - **Modularity**: Each repo decides its own routing, state management, and UI architecture.
 
 ## Migration from Old Architecture
