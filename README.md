@@ -97,7 +97,48 @@ These run on the server during git operations:
 
 ### `.relay.yaml`
 
-Defines repository metadata and hook configuration:
+Defines repository metadata, hook configuration, and Git-level infrastructure rules:
+
+```yaml
+name: "Movie Repository"
+version: "1.0.0"
+
+# JSX Hook mapping
+client:
+  hooks:
+    get: { path: "hooks/client/get-client.jsx" }
+
+# Node.js Server Hook mapping
+server:
+  hooks:
+    pre-commit: { path: "hooks/server/pre-commit.mjs" }
+    pre-receive: { path: "hooks/server/pre-receive.mjs" }
+
+git:
+  # P2P Peer synchronization
+  autoPush:
+    branches: ["main"]
+    originList: ["node-dfw1.relaynet.online"]
+
+  # Native Branch Protection
+  branchRules:
+    default:
+      requireSigned: true
+    branches:
+      - name: main
+        rule: { requireSigned: true, allowedKeys: [".ssh/admin.pub"] }
+```
+
+## Testing Hooks
+
+### Server Hooks Integration Test
+You can test the validation logic in isolation without executing a full Git push:
+
+```bash
+node tests/test_hooks.mjs
+```
+
+This script simulates the `pre-receive` execution by mocking the `stdin` context and environment variables.
 
 ```yaml
 name: "Movie Repository"

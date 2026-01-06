@@ -4,6 +4,25 @@
 
 The relay-template is a self-contained, decoupled repository hook system. Each repository manages its own internal state, routing, and UI lifecycle **independently** of the host client.
 
+## Repository Configuration
+
+Repository behavior is managed via `.relay.yaml` at the root. This file defines:
+- **client**: JSX hook entry points for rendering.
+- **server**: Node.js hook entry points for commit validation.
+- **git**: Infrastructure rules for branch protection and P2P synchronization.
+
+See [README.md](README.md) for more details on the configuration schema.
+
+## Server-Side Implementation
+
+The repository includes server-side hooks that run within the Relay environment:
+- `pre-commit.mjs`: Runs on `PUT` requests to validate files before committing.
+- `pre-receive.mjs`: Runs on `git push` to validate entire commits.
+- `.relay/validation.mjs`: Centralized validation logic used by both hooks.
+- `lib/utils.mjs`: Shared library for Git and environment interaction.
+
+Infrastructure features like **Signature Verification** and **Auto-Push** are handled natively by the Rust dispatcher based on settings in `.relay.yaml`.
+
 ## JSX and React Imports
 
 **CRITICAL:** JSX files in the template do NOT need `import React from 'react'`.

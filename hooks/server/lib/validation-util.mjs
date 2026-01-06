@@ -18,7 +18,7 @@ export function runValidationSandbox(validationCode, changes, readFromTreeFn) {
     },
   };
 
-  const contextObj = { api, console: console, Buffer };
+  const contextObj = { api, console: console, Buffer, TextDecoder };
   const context = vm.createContext(contextObj, { name: 'validation-sandbox' });
   const code = `${validationCode.toString()}\n//# sourceURL=validation.mjs`;
   const script = new vm.Script(code, { filename: 'validation.mjs' });

@@ -12,12 +12,15 @@ server:
     pre-receive:
       path: hooks/server/pre-receive.mjs
 git:
+  # Auto-push facilitates P2P synchronization between peers
   autoPush:
     branches: [ "main", "staging", "develop" ]
     originList:
       - "node-dfw1.relaynet.online"
       - "node-dfw2.relaynet.online"
     debounceSeconds: 2
+  
+  # Branch rules are enforced natively by the Rust hook dispatcher
   branchRules:
     default:
       requireSigned: false
