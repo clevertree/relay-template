@@ -20,12 +20,12 @@ git:
     debounceSeconds: 2
   branchRules:
     default:
-      requireSigned: true
+      requireSigned: false
       allowedKeys: [ ".ssh/*" ]
     branches:
       - name: main
         rule:
-          requireSigned: true
+          requireSigned: false
           allowedKeys: [ ".ssh/id_rsa.pub" ]
       - name: public
         rule:
