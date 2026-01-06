@@ -281,7 +281,7 @@ function GetClientComponent() {
                 if (!cancelled) setContent(wrap(element, opts));
                 return;
             } catch (err) {
-                console.error('[get-client] Error loading content:', err)
+                console.error('[get-client] Error loading content:', err.message, err.stack)
                 if (!cancelled) setError(err)
             }
         }
