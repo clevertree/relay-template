@@ -22,7 +22,10 @@ function isWhitelisted(p) {
   return (
     globMatch('data/**/meta.yaml', p) ||
     globMatch('data/**/meta.yml', p) ||
-    globMatch('data/**/index.md', p)
+    globMatch('data/**/index.md', p) ||
+    globMatch('.relay/**', p) ||
+    globMatch('hooks/**', p) ||
+    globMatch('.relay.yaml', p)
   );
 }
 
