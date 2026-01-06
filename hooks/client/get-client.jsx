@@ -194,12 +194,13 @@ function GetClientComponent() {
                 }
 
                 function wrap(element, options) {
-                    console.log('[wrap] Called with element:', element?.constructor?.name, 'options:', Object.keys(options || {}))
+                    console.log('[wrap] Called. element:', !!element, 'options:', !!options)
                     // Handle both ESM (.default) and CJS (direct) exports
                     const LayoutComp = layoutComponent?.default || layoutComponent
-                    console.log('[wrap] LayoutComp resolved:', LayoutComp?.name || typeof LayoutComp)
+                    console.log('[wrap] LayoutComp:', typeof LayoutComp, 'isFunc:', typeof LayoutComp === 'function', 'keys:', Object.keys(layoutComponent || {}))
                     
                     if (!LayoutComp || typeof LayoutComp !== 'function') {
+                        console.error('[wrap] Invalid LayoutComp:', LayoutComp);
                         throw new Error('Missing or invalid layout component: hooks/client/components/Layout.jsx')
                     }
                     console.log('[wrap] Creating LayoutComp with props')
