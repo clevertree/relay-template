@@ -103,6 +103,101 @@ export function verifyCommitWithAllowedSigners(gitDir, newCommit, collectAllowed
     git(gitDir, ['verify-commit', newCommit]);
     return true;
   } catch {}
+  
+  const allowed = collectAllowedSignersFn(gitDir, newCommit, (p) => readFromTree(gitDir, newCommit, p));
+  if (!allowed) return false;
+  
+  try {
+    // Force SSH verification with provided allowed signers file
+    execFileSync('git', [
+      '-c', `gpg.ssh.allowedSignersFile=${allowed}`,
+      '-c', 'gpg.format=ssh',
+      '--git-dir', gitDir,
+      'verify-commit', newCommit
+    ], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    try {
+      if (allowed) fs.unlinkSync(allowed);
+    } catch {}
+  }
+}
+
+export function yamlToJson(buf) {
+  try {
+    // Try node execution if js-yaml might be available in node_modules or globally
+    const js = execSync('node -e "const fs=require(\'fs\');const yaml=require(\'js-yaml\');const d=fs.readFileSync(0,\'utf8\');process.stdout.write(JSON.stringify(yaml.load(d)))"', { input: buf });
+    return JSON.parse(js.toString('utf8'));
+  } catch {
+    try {
+      return JSON.parse(buf.toString('utf8'));
+    } catch {
+      return null;
+    }
+  }
+}
+
+export function upsertIndex(gitDir, newCommit, changes, readFileFn, branch = 'main') {
+  const indexPath = path.join(gitDir, 'relay_index.json');
+  let index = { items: [] };
+  if (fs.existsSync(indexPath)) {
+    try {
+      index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    } catch {
+      index = { items: [] };
+    }
+  }
+  const items = Array.isArray(index.items) ? index.items : [];
+  
+  const key = (branch, metaDir) => `${branch}::${metaDir}`;
+  const pos = new Map();
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (it && typeof it === 'object') pos.set(key(it._branch, it._meta_dir), i);
+  }
+  
+  for (const ch of changes) {
+    if (ch.path.endsWith('/meta.yaml') || ch.path.endsWith('/meta.yml') || 
+        ch.path.endsWith('meta.yaml') || ch.path.endsWith('meta.yml')) {
+      const metaDir = path.posix.dirname(ch.path);
+      if (ch.status === 'D') {
+        const k = key(branch, metaDir);
+        if (pos.has(k)) {
+          const i = pos.get(k);
+          items.splice(i, 1);
+        }
+        continue;
+      }
+      const buf = readFileFn(ch.path);
+      if (!buf) continue;
+      const json = yamlToJson(buf);
+      if (!json) continue;
+      const doc = {
+        ...json,
+        _branch: branch,
+        _meta_dir: metaDir,
+        _updated_at: new Date().toISOString()
+      };
+      if (!('_created_at' in doc)) doc._created_at = new Date().toISOString();
+      const k = key(branch, metaDir);
+      if (pos.has(k)) {
+        items[pos.get(k)] = doc;
+      } else {
+        pos.set(k, items.length);
+        items.push(doc);
+      }
+    }
+  }
+  index.items = items;
+  fs.writeFileSync(indexPath, JSON.stringify(index));
+}
+  try {
+    // First try generic verify-commit (supports GPG/SSH depending on commit)
+    git(gitDir, ['verify-commit', newCommit]);
+    return true;
+  } catch {}
 
   const allowed = collectAllowedSignersFn();
   if (!allowed) return false;

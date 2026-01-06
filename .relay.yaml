@@ -11,4 +11,27 @@ server:
       path: hooks/server/pre-commit.mjs
     pre-receive:
       path: hooks/server/pre-receive.mjs
+git:
+  autoPush:
+    branches: [ "main", "staging", "develop" ]
+    originList:
+      - "node-dfw1.relaynet.online"
+      - "node-dfw2.relaynet.online"
+    debounceSeconds: 2
+  branchRules:
+    default:
+      requireSigned: true
+      allowedKeys: [ ".ssh/*" ]
+    branches:
+      - name: main
+        rule:
+          requireSigned: true
+          allowedKeys: [ ".ssh/id_rsa.pub" ]
+      - name: public
+        rule:
+          allowUnsigned: true
+  github:
+    enabled: true
+    path: "/hooks/github"
+    events: [ "push" ]
 

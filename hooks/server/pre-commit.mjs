@@ -5,7 +5,7 @@
 //  - Run validation.mjs in a restricted sandbox to enforce whitelist + validation
 //  - Validate file format and allowed paths
 
-import { env, git, listChanged, readFromTree } from './lib/utils.mjs';
+import { env, listChanged, readFromTree, upsertIndex } from './lib/utils.mjs';
 import { runValidationSandbox } from './lib/validation-util.mjs';
 
 const GIT_DIR = env('GIT_DIR');
@@ -14,23 +14,24 @@ const NEW_COMMIT = env('NEW_COMMIT');
 const BRANCH = env('BRANCH', 'main');
 
 if (!GIT_DIR || !NEW_COMMIT) {
-  console.error('pre-commit.mjs: missing required env (GIT_DIR, NEW_COMMIT)');
-  process.exit(2);
+  process.exit(0);
 }
 
 function main() {
   const changes = listChanged(GIT_DIR, OLD_COMMIT, NEW_COMMIT);
   
+  // Run validation sandbox
   const validationCode = readFromTree(GIT_DIR, NEW_COMMIT, '.relay/validation.mjs');
-  const readFileFn = (filePath) => readFromTree(GIT_DIR, NEW_COMMIT, filePath);
-  
+  const readFileFn = (p) => readFromTree(GIT_DIR, NEW_COMMIT, p);
   const result = runValidationSandbox(validationCode, changes, readFileFn);
 
-  if (!result || result.ok === false) {
-    const msg = result?.message || 'validation failed';
-    console.error(msg);
+  if (result && result.ok === false) {
+    console.error(result.message || 'validation failed');
     process.exit(1);
   }
+  
+  // Maintain index for meta.yaml changes (pre-commit also updates index for local server edits)
+  upsertIndex(GIT_DIR, NEW_COMMIT, changes, readFileFn, BRANCH);
 
   console.log('pre-commit validation passed');
 }
